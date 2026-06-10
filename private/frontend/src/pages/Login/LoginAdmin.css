@@ -1,0 +1,50 @@
+.login-admin {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  padding: 16px;
+}
+
+.login-admin__card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+
+.login-admin__brand {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-admin__logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.login-admin__brand h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.login-admin__brand p {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.login-admin__submit {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  margin-top: 8px;
+  justify-content: center;
+}
