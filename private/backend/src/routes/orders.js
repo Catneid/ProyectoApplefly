@@ -1,14 +1,15 @@
 import express from "express";
 import ordersController from "../controller/ordersController.js";
-import { verifyToken, verifyAdmin } from "../middlewares/verifyToken.js";
+import { verifyAdmin } from "../middlewares/verifyToken.js";
 
 const router = express.Router();
 
 router.get("/count", verifyAdmin, ordersController.countOrders);
 
+// Aquí el admin solo consulta y gestiona pedidos.
+// Los pedidos los crea el cliente desde public/backend.
 router.route("/")
-  .get(verifyAdmin, ordersController.getOrders)
-  .post(verifyToken, ordersController.createOrder);
+  .get(verifyAdmin, ordersController.getOrders);
 
 router.route("/:id")
   .get(verifyAdmin, ordersController.getOrderById)

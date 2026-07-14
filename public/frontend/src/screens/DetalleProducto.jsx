@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useProductos, normalizeProducto } from '../context/ProductosContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import Boton from '../components/Boton.jsx';
 import TelefonoCard from '../components/TelefonoCard.jsx';
+import ResenasProducto from '../components/ResenasProducto.jsx';
 import './DetalleProducto.css';
 
 const DetalleProducto = () => {
@@ -63,8 +65,15 @@ const DetalleProducto = () => {
     .filter((p) => p.category === telefono.category && p.id !== telefono.id)
     .slice(0, 4);
 
-  const agregarAlCarrito = () => addToCart(telefono, cantidad);
-  const comprarAhora = () => { addToCart(telefono, cantidad); navigate('/carrito'); };
+  const agregarAlCarrito = () => {
+    addToCart(telefono, cantidad);
+    toast.success(`${telefono.name} agregado al carrito`);
+  };
+
+  const comprarAhora = () => {
+    addToCart(telefono, cantidad);
+    navigate('/carrito');
+  };
 
   return (
     <div className="detalle page-enter">
@@ -201,6 +210,8 @@ const DetalleProducto = () => {
             </div>
           </div>
         )}
+
+        <ResenasProducto productoId={telefono._id || telefono.id} />
 
         {relacionados.length > 0 && (
           <div className="detalle__relacionados">

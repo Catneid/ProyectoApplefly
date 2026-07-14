@@ -40,4 +40,8 @@ loginAdminController.login = async (req, res) => {
   }
 };
 
+loginAdminController.verify = (req, res) => {
+  return res.status(200).json({ user: req.user });
+};
+
 export default loginAdminController;

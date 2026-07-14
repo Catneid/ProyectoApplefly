@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext.jsx';
 import Boton from './Boton.jsx';
 import './TelefonoCard.css';
@@ -15,9 +16,12 @@ const TelefonoCard = ({ telefono }) => {
       : 0;
 
   const agregarAlCarrito = (e) => {
+    // La tarjeta entera es un <Link>: sin esto, agregar al carrito
+    // también navegaría a la ficha del producto.
     e.preventDefault();
     e.stopPropagation();
     addToCart({ ...telefono, id: idProducto });
+    toast.success(`${telefono.name} agregado al carrito`);
   };
 
   return (

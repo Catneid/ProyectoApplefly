@@ -95,7 +95,12 @@ const Navbar = () => {
 
             {user ? (
               <div className="navbar__user">
-                <span className="navbar__user-name">Hola, {user.name}</span>
+                <Link to="/perfil" className="navbar__user-name" onClick={cerrarMenu}>
+                  Hola, {user.name}
+                </Link>
+                <Link to="/mis-pedidos" className="navbar__pedidos" onClick={cerrarMenu}>
+                  Mis pedidos
+                </Link>
                 <button className="navbar__logout" onClick={manejarLogout}>
                   Salir
                 </button>

@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
 import './Auth.css';
@@ -24,18 +25,20 @@ const Registro = () => {
       return;
     }
 
-    const resultado = await registerUser({
-      name: data.name,
-      lastName: data.lastName || '',
-      birthdate: data.birthdate || null,
-      email: data.email,
-      password: data.password,
-    });
+    try {
+      await registerUser({
+        name: data.name,
+        lastName: data.lastName || '',
+        birthdate: data.birthdate || null,
+        email: data.email,
+        password: data.password,
+      });
 
-    if (resultado.ok) {
+      toast.success('Te enviamos un código a tu correo');
       navigate('/verificar-codigo', { state: { email: data.email } });
-    } else {
-      setError('root', { message: resultado.message });
+    } catch (e) {
+      setError('root', { message: e.message });
+      toast.error(e.message);
     }
   };
 

@@ -6,8 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:4000', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:4000', changeOrigin: true },
+      // La tienda habla con public/backend (4001).
+      // El panel de administración es el que usa el 4000.
+      '/api': { target: 'http://localhost:4001', changeOrigin: true },
     },
   },
 })

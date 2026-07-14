@@ -21,6 +21,18 @@ export const AdminAuthProvider = ({ children }) => {
     localStorage.removeItem("adminUser");
   };
 
+  useEffect(() => {
+    if (!admin) return;
+    fetch("/api/loginAdmin/verify", { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) {
+          setAdmin(null);
+          localStorage.removeItem("adminUser");
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AdminAuthContext.Provider value={{ admin, login, logout }}>
       {children}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
@@ -9,70 +9,22 @@ const Carrito = () => {
   const { items, removeFromCart, updateQuantity, subtotal, shipping, tax, total, clearCart, totalItems } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [compraExitosa, setCompraExitosa] = useState(false);
-  const [cargando, setCargando] = useState(false);
 
-  const finalizarCompra = async () => {
+  // El carrito ya no compra nada: solo lleva al checkout, que es donde se
+  // piden los datos de envío, se cobra la tarjeta y se confirma el pedido.
+  const irAlCheckout = () => {
     if (!user) {
-      navigate('/login');
+      toast('Inicia sesión para completar tu compra', { icon: '🔒' });
+      navigate('/login', { state: { desde: '/checkout' } });
       return;
     }
-
-    setCargando(true);
-    try {
-      const orderData = {
-        customerId: user.id,
-        customerName: user.name,
-        customerEmail: user.email,
-        products: items.map((item) => ({
-          productId: item._id || item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          subtotal: +(item.price * item.quantity).toFixed(2),
-        })),
-        subtotal: +subtotal.toFixed(2),
-        shipping: +shipping.toFixed(2),
-        tax: +tax.toFixed(2),
-        total: +total.toFixed(2),
-      };
-
-      await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(orderData),
-      });
-    } catch {
-      /* si falla el pedido, igual mostramos éxito */
-    } finally {
-      setCargando(false);
-    }
-
-    setCompraExitosa(true);
-    setTimeout(() => {
-      clearCart();
-      setCompraExitosa(false);
-      navigate('/');
-    }, 2800);
+    navigate('/checkout');
   };
 
-  if (compraExitosa) {
-    return (
-      <div className="carrito-vacio page-enter">
-        <div className="container">
-          <div className="carrito-vacio__contenido">
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="carrito-vacio__check">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <h2>¡Compra realizada con éxito!</h2>
-            <p>Gracias por tu compra en Applefly. Recibirás un correo con los detalles.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const vaciarCarrito = () => {
+    clearCart();
+    toast.success('Carrito vaciado');
+  };
 
   if (items.length === 0) {
     return (
@@ -143,7 +95,7 @@ const Carrito = () => {
               <Link to="/catalogo">
                 <Boton texto="← Seguir comprando" variante="ghost" />
               </Link>
-              <Boton texto="Vaciar carrito" variante="ghost" onClick={clearCart} />
+              <Boton texto="Vaciar carrito" variante="ghost" onClick={vaciarCarrito} />
             </div>
           </div>
 
@@ -169,15 +121,14 @@ const Carrito = () => {
             )}
 
             <Boton
-              texto={cargando ? 'Procesando...' : user ? 'Finalizar compra' : 'Iniciar sesión para comprar'}
+              texto={user ? 'Continuar con la compra' : 'Iniciar sesión para comprar'}
               variante="primary"
               tamano="full"
-              onClick={finalizarCompra}
-              disabled={cargando}
+              onClick={irAlCheckout}
             />
 
             <div className="carrito__pago-info">
-              <p>Pagos seguros · Garantía de 12 meses</p>
+              <p>Pagos seguros con Wompi · Garantía de 12 meses</p>
             </div>
           </aside>
         </div>

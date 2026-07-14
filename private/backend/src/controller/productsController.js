@@ -1,5 +1,7 @@
 import productModel from "../models/products.js";
 
+import { v2 as cloudinary } from "cloudinary";
+
 const productsController = {};
 
 productsController.getProducts = async (req, res) => {
@@ -25,8 +27,6 @@ productsController.insertProduct = async (req, res) => {
   try {
     const { name, description, price, originalPrice, discount, stock, category, condition, storage, ram, color, featured } = req.body;
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
     const newProduct = new productModel({
       name,
       description,
@@ -35,7 +35,8 @@ productsController.insertProduct = async (req, res) => {
       discount: discount ? parseFloat(discount) : 0,
       stock: parseInt(stock) || 0,
       category: category || null,
-      image: imageUrl,
+      image: req.file ? req.file.path : null,
+      public_id: req.file ? req.file.filename : null,
       condition: condition || "Nuevo",
       storage,
       ram,
@@ -56,6 +57,10 @@ productsController.updateProduct = async (req, res) => {
   try {
     const { name, description, price, originalPrice, discount, stock, category, condition, storage, ram, color, featured } = req.body;
 
+    // Identifico cuál producto voy a actualizar
+    const productFound = await productModel.findById(req.params.id);
+    if (!productFound) return res.status(404).json({ message: "Producto no encontrado" });
+
     const updateData = {
       name, description,
       price: parseFloat(price),
@@ -68,12 +73,16 @@ productsController.updateProduct = async (req, res) => {
       featured: featured === "true" || featured === true,
     };
 
+    // Si viene una imagen nueva, borro la anterior de Cloudinary y guardo la nueva
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      if (productFound.public_id) {
+        await cloudinary.uploader.destroy(productFound.public_id);
+      }
+      updateData.image = req.file.path;
+      updateData.public_id = req.file.filename;
     }
 
     const updated = await productModel.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate("category", "name");
-    if (!updated) return res.status(404).json({ message: "Producto no encontrado" });
 
     return res.status(200).json({ message: "Producto actualizado", product: updated });
   } catch (error) {
@@ -84,10 +93,21 @@ productsController.updateProduct = async (req, res) => {
 
 productsController.deleteProduct = async (req, res) => {
   try {
-    const deleted = await productModel.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "Producto no encontrado" });
+    // Busco el producto a eliminar
+    const productFound = await productModel.findById(req.params.id);
+    if (!productFound) return res.status(404).json({ message: "Producto no encontrado" });
+
+    // Elimino la imagen de Cloudinary
+    if (productFound.public_id) {
+      await cloudinary.uploader.destroy(productFound.public_id);
+    }
+
+    // Elimino de la base de datos
+    await productModel.findByIdAndDelete(req.params.id);
+
     return res.status(200).json({ message: "Producto eliminado" });
-  } catch {
+  } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Error interno" });
   }
 };

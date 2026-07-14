@@ -18,3 +18,29 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Pantalla de espera mientras se revalida la sesión del cliente.
+   Sin esto, una ruta protegida parpadearía hacia el login antes de
+   confirmar que el usuario sí tiene sesión abierta. */
+.cargando-pantalla {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 55vh;
+  color: #86868b;
+}
+
+.cargando-pantalla__spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e5e5ea;
+  border-top-color: var(--color-primary, #067FF9);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}

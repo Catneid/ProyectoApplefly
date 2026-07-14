@@ -1,6 +1,6 @@
 import express from "express";
 import categoriesController from "../controller/categoriesController.js";
-import { upload } from "../middlewares/uploadImage.js";
+import upload from "../utils/cloudinaryConfig.js";
 import { verifyAdmin } from "../middlewares/verifyToken.js";
 
 const router = express.Router();

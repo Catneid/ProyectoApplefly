@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
 import './Auth.css';
@@ -7,6 +8,11 @@ import './Auth.css';
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Si llegó aquí porque una ruta protegida lo expulsó (por ejemplo el
+  // checkout), lo devolvemos a esa pantalla al entrar, no al inicio.
+  const destino = location.state?.desde || '/';
 
   const {
     register,
@@ -16,11 +22,13 @@ const Login = () => {
   } = useForm();
 
   const onSubmit = async (data) => {
-    const resultado = await login(data);
-    if (resultado.ok) {
-      navigate('/');
-    } else {
-      setError('root', { message: resultado.message });
+    try {
+      const usuario = await login(data);
+      toast.success(`¡Bienvenido de nuevo, ${usuario.name}!`);
+      navigate(destino, { replace: true });
+    } catch (e) {
+      setError('root', { message: e.message });
+      toast.error(e.message);
     }
   };
 
@@ -71,6 +79,9 @@ const Login = () => {
             />
           </form>
 
+          <p className="auth__alt">
+            <Link to="/recuperar-password">¿Olvidaste tu contraseña?</Link>
+          </p>
           <p className="auth__alt">
             ¿No tienes cuenta? <Link to="/registro">Regístrate</Link>
           </p>

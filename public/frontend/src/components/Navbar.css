@@ -240,3 +240,14 @@
   }
   .navbar__auth { flex: 1; justify-content: flex-end; }
 }
+
+.navbar__pedidos {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary, #067FF9);
+  white-space: nowrap;
+}
+
+.navbar__pedidos:hover {
+  text-decoration: underline;
+}

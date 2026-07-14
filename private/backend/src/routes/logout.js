@@ -3,7 +3,7 @@ import logoutController from "../controller/logoutController.js";
 
 const router = express.Router();
 
-router.post("/customer", logoutController.logoutCustomer);
+// El logout del cliente vive en public/backend
 router.post("/admin", logoutController.logoutAdmin);
 
 export default router;

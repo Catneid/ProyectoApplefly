@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
 import './Auth.css';
@@ -24,14 +25,16 @@ const VerificarCodigo = () => {
     setLoading(true);
     setError(null);
 
-    const resultado = await verifyCode(codigo.trim());
-    setLoading(false);
-
-    if (resultado.ok) {
+    try {
+      await verifyCode(codigo.trim());
       setSuccess(true);
+      toast.success('¡Cuenta verificada! Ya puedes iniciar sesión');
       setTimeout(() => navigate('/login'), 2000);
-    } else {
-      setError(resultado.message);
+    } catch (e) {
+      setError(e.message);
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProductos } from '../context/ProductosContext.jsx';
 import TelefonoCard from '../components/TelefonoCard.jsx';
@@ -28,16 +28,29 @@ const Catalogo = () => {
   const [orden, setOrden] = useState('destacado');
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  useEffect(() => {
+  // Los filtros tienen que reaccionar a dos cosas de afuera: el tope de
+  // precio (que solo se conoce cuando cargan los productos) y lo que venga
+  // en la URL (?categoria=... o ?q=...).
+  //
+  // React pide ajustar el estado DURANTE el render y no dentro de un
+  // useEffect: hacerlo en un efecto provoca un render de más con datos
+  // viejos, y es justo lo que marca la regla set-state-in-effect.
+  // El patrón es guardar el valor anterior y compararlo aquí mismo.
+  const [ultimoPrecioMax, setUltimoPrecioMax] = useState(precioMax);
+  if (precioMax !== ultimoPrecioMax) {
+    setUltimoPrecioMax(precioMax);
     setFiltros((f) => ({ ...f, precioMax }));
-  }, [precioMax]);
+  }
 
-  useEffect(() => {
+  const urlActual = `${categoriaInicial ?? ''}|${busquedaInicial}`;
+  const [ultimaUrl, setUltimaUrl] = useState(urlActual);
+  if (urlActual !== ultimaUrl) {
+    setUltimaUrl(urlActual);
+    setBusqueda(busquedaInicial);
     if (categoriaInicial) {
       setFiltros((f) => ({ ...f, categorias: [categoriaInicial] }));
     }
-    setBusqueda(busquedaInicial);
-  }, [categoriaInicial, busquedaInicial]);
+  }
 
   const resultados = useMemo(() => {
     let arr = [...productos];
