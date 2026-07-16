@@ -114,12 +114,99 @@
   margin-top: 5px;
 }
 
+.perfil__hint {
+  color: #86868b;
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
 .perfil__acciones {
   display: flex;
   gap: 12px;
   justify-content: center;
   margin-top: 32px;
   flex-wrap: wrap;
+}
+
+/* Modal de cambio de contraseña */
+.perfil__modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 2000;
+  animation: perfil-fade 0.15s ease;
+}
+
+.perfil__modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: perfil-pop 0.18s ease;
+}
+
+.perfil__modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.perfil__modal-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.perfil__modal-close {
+  background: none;
+  border: none;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #86868b;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.perfil__modal-close:hover {
+  color: var(--color-text, #1d1d1f);
+}
+
+.perfil__modal-acciones {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.perfil__modal-olvido {
+  text-align: left;
+  margin: 0 0 18px;
+  font-size: 0.88rem;
+}
+.perfil__modal-olvido a {
+  color: var(--color-primary, #067FF9);
+  font-weight: 500;
+}
+.perfil__modal-olvido a:hover {
+  text-decoration: underline;
+}
+
+@keyframes perfil-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes perfil-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 900px) {

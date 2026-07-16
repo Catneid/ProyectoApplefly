@@ -14,12 +14,10 @@ loginCustomerController.login = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    // Sin correo confirmado no se puede entrar (criterio de la rúbrica)
     if (!userFound.isVerified) {
       return res.status(403).json({ message: "Debes verificar tu correo primero" });
     }
 
-    // Bloqueo temporal tras 5 intentos fallidos
     if (userFound.timeOut && userFound.timeOut > Date.now()) {
       return res.status(403).json({ message: "Cuenta bloqueada temporalmente. Intenta en 15 minutos" });
     }
@@ -62,7 +60,7 @@ loginCustomerController.login = async (req, res) => {
   }
 };
 
-// La tienda la usa al cargar para saber si la cookie sigue siendo válida
+
 loginCustomerController.verify = async (req, res) => {
   return res.status(200).json({ user: req.user });
 };

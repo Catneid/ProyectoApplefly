@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -11,8 +11,20 @@ const Perfil = () => {
   const { perfil, cargando, error, actualizarPerfil, cambiarPassword } = usePerfil();
   const { logout } = useAuth();
 
+  const [modalPassword, setModalPassword] = useState(false);
+
   const formDatos = useForm();
   const formPassword = useForm();
+
+  const abrirModalPassword = () => {
+    formPassword.reset();
+    setModalPassword(true);
+  };
+
+  const cerrarModalPassword = () => {
+    formPassword.reset();
+    setModalPassword(false);
+  };
 
   // El perfil llega del servidor después del primer render, así que hay que
   // volcar sus valores al formulario cuando aparece.
@@ -41,6 +53,7 @@ const Perfil = () => {
     try {
       await cambiarPassword(datos.currentPassword, datos.newPassword);
       formPassword.reset();
+      setModalPassword(false);
       toast.success('Contraseña actualizada');
     } catch (e) {
       formPassword.setError('currentPassword', { message: e.message });
@@ -129,13 +142,52 @@ const Perfil = () => {
                 texto={formDatos.formState.isSubmitting ? 'Guardando...' : 'Guardar cambios'}
                 tipo="submit"
                 variante="primary"
-                disabled={formDatos.formState.isSubmitting}
+                deshabilitado={formDatos.formState.isSubmitting}
               />
             </form>
           </section>
 
           <section className="perfil__card">
-            <h2>Cambiar contraseña</h2>
+            <h2>Seguridad</h2>
+            <p className="perfil__hint">
+              Actualiza tu contraseña de acceso cuando lo necesites.
+            </p>
+            <Boton
+              texto="Cambiar Contraseña"
+              variante="secondary"
+              onClick={abrirModalPassword}
+            />
+          </section>
+        </div>
+
+        <div className="perfil__acciones">
+          <Link to="/mis-pedidos">
+            <Boton texto="Ver mis pedidos" variante="ghost" />
+          </Link>
+          <Boton texto="Cerrar Sesión" variante="ghost" onClick={logout} />
+        </div>
+      </div>
+
+      {modalPassword && (
+        <div className="perfil__modal-overlay" onClick={cerrarModalPassword}>
+          <div
+            className="perfil__modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Cambiar contraseña"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="perfil__modal-header">
+              <h2>Cambiar Contraseña</h2>
+              <button
+                type="button"
+                className="perfil__modal-close"
+                onClick={cerrarModalPassword}
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
 
             <form onSubmit={formPassword.handleSubmit(guardarPassword)} className="perfil__form" noValidate>
               <div className="perfil__field">
@@ -179,23 +231,30 @@ const Perfil = () => {
                 )}
               </div>
 
-              <Boton
-                texto={formPassword.formState.isSubmitting ? 'Cambiando...' : 'Cambiar contraseña'}
-                tipo="submit"
-                variante="secondary"
-                disabled={formPassword.formState.isSubmitting}
-              />
-            </form>
-          </section>
-        </div>
+              <p className="perfil__modal-olvido">
+                <Link to="/recuperar-password" onClick={cerrarModalPassword}>
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </p>
 
-        <div className="perfil__acciones">
-          <Link to="/mis-pedidos">
-            <Boton texto="Ver mis pedidos" variante="ghost" />
-          </Link>
-          <Boton texto="Cerrar sesión" variante="ghost" onClick={logout} />
+              <div className="perfil__modal-acciones">
+                <Boton
+                  texto="Cancelar"
+                  tipo="button"
+                  variante="ghost"
+                  onClick={cerrarModalPassword}
+                />
+                <Boton
+                  texto={formPassword.formState.isSubmitting ? 'Cambiando...' : 'Guardar contraseña'}
+                  tipo="submit"
+                  variante="primary"
+                  deshabilitado={formPassword.formState.isSubmitting}
+                />
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -86,7 +86,7 @@ const VerificarCodigo = () => {
               tipo="submit"
               variante="primary"
               tamano="full"
-              disabled={loading || codigo.length < 6}
+              deshabilitado={loading || codigo.length < 6}
             />
           </form>
 

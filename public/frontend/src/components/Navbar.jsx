@@ -7,7 +7,7 @@ import './Navbar.css';
 
 const Navbar = () => {
   const { totalItems } = useCart();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
@@ -21,12 +21,6 @@ const Navbar = () => {
       setBusqueda('');
       cerrarMenu();
     }
-  };
-
-  const manejarLogout = () => {
-    logout();
-    cerrarMenu();
-    navigate('/');
   };
 
   return (
@@ -82,28 +76,23 @@ const Navbar = () => {
           </form>
 
           <div className="navbar__actions">
-            <Link to="/carrito" className="navbar__cart" onClick={cerrarMenu} aria-label="Carrito">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-              {totalItems > 0 && (
-                <span className="navbar__cart-badge">{totalItems}</span>
-              )}
-            </Link>
-
             {user ? (
               <div className="navbar__user">
-                <Link to="/perfil" className="navbar__user-name" onClick={cerrarMenu}>
-                  Hola, {user.name}
-                </Link>
                 <Link to="/mis-pedidos" className="navbar__pedidos" onClick={cerrarMenu}>
                   Mis pedidos
                 </Link>
-                <button className="navbar__logout" onClick={manejarLogout}>
-                  Salir
-                </button>
+                <Link
+                  to="/perfil"
+                  className="navbar__profile"
+                  onClick={cerrarMenu}
+                  aria-label="Perfil"
+                  title={`Perfil de ${user.name}`}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </Link>
               </div>
             ) : (
               <div className="navbar__auth">
@@ -115,6 +104,17 @@ const Navbar = () => {
                 </Link>
               </div>
             )}
+
+            <Link to="/carrito" className="navbar__cart" onClick={cerrarMenu} aria-label="Carrito">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="navbar__cart-badge">{totalItems}</span>
+              )}
+            </Link>
           </div>
         </nav>
       </div>

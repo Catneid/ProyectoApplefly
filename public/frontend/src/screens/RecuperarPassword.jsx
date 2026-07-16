@@ -82,7 +82,7 @@ const RecuperarPassword = () => {
                   tipo="submit"
                   variante="primary"
                   tamano="full"
-                  disabled={enviando}
+                  deshabilitado={enviando}
                 />
               </form>
             </>
@@ -125,7 +125,7 @@ const RecuperarPassword = () => {
                   tipo="submit"
                   variante="primary"
                   tamano="full"
-                  disabled={enviando}
+                  deshabilitado={enviando}
                 />
               </form>
 
@@ -177,7 +177,7 @@ const RecuperarPassword = () => {
                   tipo="submit"
                   variante="primary"
                   tamano="full"
-                  disabled={enviando}
+                  deshabilitado={enviando}
                 />
               </form>
             </>

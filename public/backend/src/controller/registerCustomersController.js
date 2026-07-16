@@ -20,8 +20,6 @@ registerCustomerController.register = async (req, res) => {
     const passwordHash = await bcryptjs.hash(password, 10);
     const verificationCode = crypto.randomBytes(3).toString("hex");
 
-    // Los datos del registro viajan dentro del token: el cliente todavía
-    // no existe en la base, se crea hasta que verifica el código.
     const tokenCode = jsonwebtoken.sign(
       { email, verificationCode, name, lastName, birthdate, passwordHash },
       config.JWT.secret,

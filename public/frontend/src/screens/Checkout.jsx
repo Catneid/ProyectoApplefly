@@ -326,12 +326,12 @@ const Checkout = () => {
                 </section>
 
                 <div className="checkout__acciones">
-                  <Boton texto="← Volver" variante="ghost" onClick={() => setPaso(2)} disabled={procesando} />
+                  <Boton texto="← Volver" variante="ghost" onClick={() => setPaso(2)} deshabilitado={procesando} />
                   <Boton
                     texto={procesando ? 'Procesando pago...' : `Pagar $${total.toFixed(2)}`}
                     variante="primary"
                     onClick={confirmarCompra}
-                    disabled={procesando}
+                    deshabilitado={procesando}
                   />
                 </div>
               </div>

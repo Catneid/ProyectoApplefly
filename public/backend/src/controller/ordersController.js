@@ -7,9 +7,7 @@ const ENVIO = 15;
 const ENVIO_GRATIS_DESDE = 500;
 const IVA = 0.13;
 
-// Vuelve a calcular el pedido usando los precios que están en la base de
-// datos. Nunca se confía en el subtotal/total que manda el navegador: si no,
-// cualquiera podría mandar total = 1 y llevarse un iPhone por un dólar.
+
 const calcularPedido = async (productosPedidos) => {
   let subtotal = 0;
   const productos = [];
@@ -55,7 +53,7 @@ const calcularPedido = async (productosPedidos) => {
   };
 };
 
-// El cliente confirma su compra. Solo llega aquí si tiene sesión (verifyToken).
+
 ordersController.createOrder = async (req, res) => {
   try {
     const { products, address, phone, payment } = req.body;
@@ -71,8 +69,7 @@ ordersController.createOrder = async (req, res) => {
     const calculado = await calcularPedido(products);
 
     const newOrder = new orderModel({
-      // El cliente sale del token, no del body: nadie puede hacer un pedido
-      // a nombre de otra persona.
+
       customerId: req.user.id,
       customerName: req.user.name,
       customerEmail: req.user.email,
@@ -89,7 +86,7 @@ ordersController.createOrder = async (req, res) => {
 
     await newOrder.save();
 
-    // Descontar el stock ya que la compra se concretó
+
     for (const item of calculado.productos) {
       await productModel.findByIdAndUpdate(item.productId, {
         $inc: { stock: -item.quantity },
@@ -99,14 +96,12 @@ ordersController.createOrder = async (req, res) => {
     return res.status(201).json({ message: "Pedido creado", order: newOrder });
   } catch (error) {
     console.log(error);
-    // Los errores de calcularPedido (sin stock, producto borrado) son culpa
-    // de la petición, no del servidor: van como 400 para que el frontend
-    // pueda mostrárselos al usuario.
+
     return res.status(400).json({ message: error.message || "No se pudo crear el pedido" });
   }
 };
 
-// Historial: solo los pedidos del cliente que está en sesión
+
 ordersController.getMyOrders = async (req, res) => {
   try {
     const orders = await orderModel
@@ -128,7 +123,7 @@ ordersController.getMyOrderById = async (req, res) => {
       return res.status(404).json({ message: "Pedido no encontrado" });
     }
 
-    // No basta con que el pedido exista: tiene que ser suyo
+
     if (String(order.customerId) !== String(req.user.id)) {
       return res.status(403).json({ message: "Acceso denegado" });
     }

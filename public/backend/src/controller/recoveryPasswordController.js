@@ -1,7 +1,7 @@
-import jsonwebtoken from "jsonwebtoken"; // Crear el token
-import bcrypt from "bcryptjs"; // Encriptar la nueva contraseña
-import crypto from "crypto"; // Generar el código aleatorio
-import nodemailer from "nodemailer"; // Enviar el correo
+import jsonwebtoken from "jsonwebtoken"; 
+import bcrypt from "bcryptjs"; 
+import crypto from "crypto"; 
+import nodemailer from "nodemailer"; 
 import HTMLRecoveryEmail from "../utils/sendMailRecovery.js";
 
 import { config } from "../../config.js";
@@ -10,7 +10,7 @@ import customerModel from "../models/customers.js";
 
 const recoveryPasswordController = {};
 
-// PASO 1 - Solicitar el código por correo electrónico
+
 recoveryPasswordController.requestCode = async (req, res) => {
   try {
     const { email } = req.body;
@@ -20,10 +20,8 @@ recoveryPasswordController.requestCode = async (req, res) => {
       return res.status(404).json({ message: "No existe una cuenta con ese correo" });
     }
 
-    // Generar el código aleatorio
     const code = crypto.randomBytes(3).toString("hex");
 
-    // El código viaja firmado dentro de la cookie, no en la base de datos
     const token = jsonwebtoken.sign(
       { email, code, userType: "customer", verified: false },
       config.JWT.secret,
@@ -59,7 +57,7 @@ recoveryPasswordController.requestCode = async (req, res) => {
   }
 };
 
-// PASO 2 - Verificar el código que escribió el usuario
+
 recoveryPasswordController.verifyCode = async (req, res) => {
   try {
     const { codeRequest } = req.body;
@@ -75,8 +73,7 @@ recoveryPasswordController.verifyCode = async (req, res) => {
       return res.status(400).json({ message: "Código incorrecto" });
     }
 
-    // Marcamos en el token que el código ya fue verificado, para que el
-    // paso 3 sepa que esta persona sí tiene permiso de cambiar la contraseña
+
     const newToken = jsonwebtoken.sign(
       { email: decoded.email, userType: "customer", verified: true },
       config.JWT.secret,
@@ -95,7 +92,7 @@ recoveryPasswordController.verifyCode = async (req, res) => {
   }
 };
 
-// PASO 3 - Guardar la nueva contraseña
+
 recoveryPasswordController.newPassword = async (req, res) => {
   try {
     const { newPassword, confirmNewPassword } = req.body;
@@ -111,7 +108,7 @@ recoveryPasswordController.newPassword = async (req, res) => {
 
     const decoded = jsonwebtoken.verify(token, config.JWT.secret);
 
-    // Sin haber pasado por el paso 2 no se puede cambiar nada
+
     if (!decoded.verified) {
       return res.status(400).json({ message: "Primero debes verificar el código" });
     }

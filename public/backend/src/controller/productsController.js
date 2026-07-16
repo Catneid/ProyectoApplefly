@@ -3,9 +3,7 @@ import reviewModel from "../models/reviews.js";
 
 const productsController = {};
 
-// Calcula, para una lista de productos, cuántas reseñas tiene cada uno
-// y cuál es su promedio de estrellas. Se hace en una sola consulta
-// agrupada en vez de una por producto.
+
 const agregarValoraciones = async (productos) => {
   const ids = productos.map((p) => p._id);
 

@@ -1,10 +1,5 @@
 import './Boton.css';
 
-/**
- * Componente de botón reutilizable.
- * Soporta variantes: primary, secondary, outline, danger, ghost.
- * Soporta tamaños: sm, md, lg, full.
- */
 const Boton = ({
   texto,
   children,

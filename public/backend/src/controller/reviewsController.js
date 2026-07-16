@@ -3,8 +3,6 @@ import orderModel from "../models/orders.js";
 
 const reviewsController = {};
 
-// ¿Este cliente compró este producto alguna vez?
-// La rúbrica pide que solo se pueda valorar lo que ya se compró.
 const comproElProducto = async (customerId, productId) => {
   const pedido = await orderModel.findOne({
     customerId,
@@ -14,7 +12,7 @@ const comproElProducto = async (customerId, productId) => {
   return Boolean(pedido);
 };
 
-// Cualquiera puede leer las reseñas de un producto, aunque no tenga sesión
+
 reviewsController.getReviewsByProduct = async (req, res) => {
   try {
     const reviews = await reviewModel
@@ -28,9 +26,7 @@ reviewsController.getReviewsByProduct = async (req, res) => {
   }
 };
 
-// La pantalla del producto pregunta esto para decidir si muestra el
-// formulario de reseña, un aviso de "primero cómpralo", o la reseña que
-// el cliente ya dejó.
+
 reviewsController.canReview = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -97,7 +93,6 @@ reviewsController.updateReview = async (req, res) => {
     const review = await reviewModel.findById(req.params.id);
     if (!review) return res.status(404).json({ message: "Reseña no encontrada" });
 
-    // Solo el autor puede editar su reseña
     if (String(review.customerId) !== String(req.user.id)) {
       return res.status(403).json({ message: "Acceso denegado" });
     }

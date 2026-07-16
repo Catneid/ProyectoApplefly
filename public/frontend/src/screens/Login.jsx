@@ -75,7 +75,7 @@ const Login = () => {
               tipo="submit"
               variante="primary"
               tamano="full"
-              disabled={isSubmitting}
+              deshabilitado={isSubmitting}
             />
           </form>
 

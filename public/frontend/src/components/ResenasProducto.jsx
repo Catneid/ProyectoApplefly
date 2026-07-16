@@ -155,7 +155,7 @@ const ResenasProducto = ({ productoId }) => {
               texto={guardando ? 'Enviando...' : editando ? 'Guardar cambios' : 'Publicar reseña'}
               tipo="submit"
               variante="primary"
-              disabled={guardando}
+              deshabilitado={guardando}
             />
           </div>
         </form>
