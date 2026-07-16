@@ -1,12 +1,4 @@
-node_modules/
-dist/
-build/
-
+/backend/.env
 .env
-.env.*
-
-private/backend/uploads/
-
-.DS_Store
-*.log
-npm-debug.log*
+*.env
+node_modules
