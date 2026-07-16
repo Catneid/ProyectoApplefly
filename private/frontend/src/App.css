@@ -10,6 +10,7 @@
   background: var(--light);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .admin-content {
@@ -17,6 +18,65 @@
   flex: 1;
 }
 
+/* Topbar móvil: oculta en escritorio */
+.admin-topbar {
+  display: none;
+}
+
+/* Backdrop del menú móvil */
+.admin-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
-  .admin-main { margin-left: 0; }
+  .admin-main {
+    margin-left: 0;
+  }
+
+  .admin-content {
+    padding: 16px;
+  }
+
+  .admin-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    height: 56px;
+    padding: 0 12px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+
+  .admin-topbar__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .admin-topbar__toggle:hover {
+    background: var(--sidebar-hover);
+  }
+
+  .admin-topbar__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .admin-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+    z-index: 95;
+  }
 }

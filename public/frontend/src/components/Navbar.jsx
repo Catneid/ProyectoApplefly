@@ -33,16 +33,6 @@ const Navbar = () => {
           </span>
         </Link>
 
-        <button
-          className="navbar__toggle"
-          onClick={() => setMenuAbierto(!menuAbierto)}
-          aria-label="Menú"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-
         <nav className={`navbar__nav ${menuAbierto ? 'navbar__nav--abierto' : ''}`}>
           <ul className="navbar__links">
             <li>
@@ -104,19 +94,32 @@ const Navbar = () => {
                 </Link>
               </div>
             )}
-
-            <Link to="/carrito" className="navbar__cart" onClick={cerrarMenu} aria-label="Carrito">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-              {totalItems > 0 && (
-                <span className="navbar__cart-badge">{totalItems}</span>
-              )}
-            </Link>
           </div>
         </nav>
+
+        {/* Acciones siempre visibles (también en móvil): carrito + menú */}
+        <div className="navbar__quick">
+          <Link to="/carrito" className="navbar__cart" onClick={cerrarMenu} aria-label="Carrito">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            {totalItems > 0 && (
+              <span className="navbar__cart-badge">{totalItems}</span>
+            )}
+          </Link>
+
+          <button
+            className="navbar__toggle"
+            onClick={() => setMenuAbierto(!menuAbierto)}
+            aria-label="Menú"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -85,7 +85,9 @@
     transition: transform var(--transition-base);
     max-height: 100vh;
   }
-  .filtros--abierto {
+  /* El wrapper recibe la clase --abierto desde Catalogo; deslizamos el panel */
+  .filtros--abierto,
+  .catalogo__sidebar--abierto .filtros {
     transform: translateX(0);
   }
   .filtros__cerrar { display: flex; align-items: center; justify-content: center; }

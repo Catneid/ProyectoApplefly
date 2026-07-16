@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import logo from "../assets/logo.png";
 import {
   IconDashboard, IconBox, IconTag,
-  IconUsers, IconUser, IconCart, IconLogout,
+  IconUsers, IconUser, IconCart, IconLogout, IconClose,
 } from "./Icons.jsx";
 import "./Sidebar.css";
 
@@ -17,7 +17,7 @@ const navItems = [
   { to: "/pedidos", label: "Pedidos", icon: <IconCart /> },
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { admin, logout } = useAdminAuth();
   const navigate = useNavigate();
 
@@ -28,13 +28,20 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={"sidebar" + (open ? " sidebar--open" : "")}>
       <div className="sidebar__brand">
         <img src={logo} alt="Applefly" className="sidebar__logo" />
         <div>
           <p className="sidebar__brand-name">Applefly</p>
           <p className="sidebar__brand-sub">Panel Admin</p>
         </div>
+        <button
+          className="sidebar__close"
+          onClick={onClose}
+          aria-label="Cerrar menú"
+        >
+          <IconClose size={20} />
+        </button>
       </div>
 
       <div className="sidebar__user">
@@ -50,6 +57,7 @@ const Sidebar = () => {
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onClose}
             className={({ isActive }) =>
               "sidebar__link" + (isActive ? " sidebar__link--active" : "")
             }

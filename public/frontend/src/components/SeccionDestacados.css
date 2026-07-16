@@ -36,7 +36,10 @@
   gap: var(--space-5);
 }
 
-@media (max-width: 500px) {
+@media (max-width: 600px) {
   .destacados__titulo { font-size: 1.5rem; }
-  .destacados__grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+  .destacados__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+  }
 }
