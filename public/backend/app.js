@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./src/swagger.js";
 
 import limiter from "./src/middlewares/limiter.js";
 
@@ -27,6 +29,8 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // El limiter solo va en las rutas de autenticación, para no estorbar
 // la navegación del catálogo.
