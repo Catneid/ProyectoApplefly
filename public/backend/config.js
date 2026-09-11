@@ -18,4 +18,12 @@ export const config = {
     client_id: process.env.CLIENT_ID,
     client_secret: process.env.CLIENT_SECRET,
   },
+  firebase: {
+    webApiKey: process.env.FIREBASE_WEB_API_KEY,
+  },
+  cloudinary: {
+    cloudinary_name: process.env.CLOUDINARY_CLOUD_NAME,
+    cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
+    cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
+  },
 };

@@ -16,6 +16,7 @@ import ordersRoutes from "./src/routes/orders.js";
 import reviewsRoutes from "./src/routes/reviews.js";
 import profileRoutes from "./src/routes/profile.js";
 import wompiRoutes from "./src/routes/wompi.js";
+import wompiAppRoutes from "./src/routes/wompiApp.js";
 
 const app = express();
 
@@ -45,5 +46,8 @@ app.use("/api/orders", ordersRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/wompi", wompiRoutes);
+// Ruta separada para la app mobile, con su propio límite de intentos: no
+// toca nada de lo que ya usa la web en /api/wompi.
+app.use("/api/wompi/app", limiter, wompiAppRoutes);
 
 export default app;

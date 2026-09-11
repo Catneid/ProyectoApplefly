@@ -88,4 +88,53 @@ registerCustomerController.verifyCode = async (req, res) => {
   }
 };
 
+// Alta de clientes que se registran desde la app mobile (Firebase Auth).
+// A diferencia de /register, acá no hay código por correo: la verificación
+// la maneja Firebase (manda su propio link), así que la cuenta se crea de
+// una. Es la mitad "mobile -> web" del puente de cuentas compartidas; la
+// otra mitad (web -> mobile) vive en mobile/src/context/AuthContext.jsx.
+registerCustomerController.registerFromMobile = async (req, res) => {
+  const { name, lastName, birthdate, email, password, phone, address, firebaseUid } = req.body;
+
+  try {
+    if (!email || !password) {
+      return res.status(400).json({ message: "Correo y contraseña son requeridos" });
+    }
+
+    // verifyFirebaseToken ya validó el ID token y dejó el uid real en
+    // req.uidApp. Si no coincide con el firebaseUid que manda el body,
+    // alguien está intentando registrar una cuenta a nombre de otro uid.
+    if (req.uidApp !== firebaseUid) {
+      return res.status(403).json({ message: "No coincide la sesión con la cuenta que intentás registrar" });
+    }
+
+    const existCustomer = await customerModel.findOne({ email });
+    if (existCustomer) {
+      return res.status(409).json({ message: "El correo ya está registrado" });
+    }
+
+    const passwordHash = await bcryptjs.hash(password, 10);
+
+    const newCustomer = new customerModel({
+      name,
+      lastName,
+      birthdate,
+      email,
+      password: passwordHash,
+      phone,
+      address,
+      isVerified: true,
+      loginAttemps: 0,
+      firebaseUid,
+    });
+
+    await newCustomer.save();
+
+    return res.status(201).json({ message: "Cuenta creada", id: newCustomer._id });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
 export default registerCustomerController;

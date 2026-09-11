@@ -1,5 +1,6 @@
 import express from "express";
 import registerCustomerController from "../controller/registerCustomersController.js";
+import { verifyFirebaseToken } from "../middlewares/verifyFirebaseToken.js";
 
 const router = express.Router();
 
@@ -80,6 +81,68 @@ router.route("/").post(registerCustomerController.register);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.route("/verifyCodeEmail").post(registerCustomerController.verifyCode);
+
+
+/**
+ * @swagger
+ * /registerCustomers/mobile:
+ *   post:
+ *     tags: [Auth - Clientes]
+ *     summary: Registra un cliente creado desde la app mobile (Firebase Auth)
+ *     description: >
+ *       Crea la cuenta directamente, sin código por correo (la verificación
+ *       la maneja Firebase del lado de la app). Es el espejo en Mongo de una
+ *       cuenta que ya existe en Firebase Auth, para que la misma cuenta sirva
+ *       también para loguearse en la web.
+ *     security:
+ *       - firebaseIdTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               birthdate:
+ *                 type: string
+ *                 format: date
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               phone:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               firebaseUid:
+ *                 type: string
+ *                 description: uid de Firebase Auth, para poder cruzar ambos registros después.
+ *     responses:
+ *       201:
+ *         description: Cuenta creada
+ *       400:
+ *         description: Faltan correo o contraseña
+ *       401:
+ *         description: Falta el token de Firebase, o es inválido/expiró
+ *       403:
+ *         description: El uid del token no coincide con firebaseUid del body
+ *       409:
+ *         description: El correo ya está registrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.route("/mobile").post(verifyFirebaseToken, registerCustomerController.registerFromMobile);
 
 
 export default router;

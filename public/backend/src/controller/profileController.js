@@ -65,4 +65,22 @@ profileController.changePassword = async (req, res) => {
   }
 };
 
+// Sube la foto de perfil de la app mobile a Cloudinary (carpeta
+// "applefly/perfiles-app/{uid}", ver src/utils/cloudinaryConfig.js) y
+// devuelve solo el secure_url. La app es quien guarda esa URL en
+// Firestore ("users/{uid}".photoURL) — este endpoint no toca Mongo ni
+// Firestore, solo hace de puente hacia Cloudinary.
+profileController.uploadFotoApp = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Falta la imagen" });
+    }
+
+    return res.status(200).json({ secure_url: req.file.path });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Error interno" });
+  }
+};
+
 export default profileController;

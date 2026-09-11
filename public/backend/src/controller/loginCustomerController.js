@@ -1,9 +1,35 @@
 import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
+import fetch from "node-fetch";
 import customerModel from "../models/customers.js";
 import { config } from "../../config.js";
 
 const loginCustomerController = {};
+
+// Respaldo cuando la contraseña no matchea en Mongo: puede ser que el
+// cliente la haya cambiado desde la app (Firebase) y acá todavía quedó la
+// vieja. Es la mitad "app -> web" del puente de cuentas compartidas; la
+// mitad opuesta (Mongo como respaldo cuando falla Firebase) vive en
+// mobile/src/context/AuthContext.jsx.
+const passwordValidaEnFirebase = async (email, password) => {
+  if (!config.firebase.webApiKey) return false;
+
+  try {
+    const respuesta = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${config.firebase.webApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      }
+    );
+
+    return respuesta.ok;
+  } catch (error) {
+    console.log("No se pudo validar la contraseña contra Firebase:", error.message);
+    return false;
+  }
+};
 
 loginCustomerController.login = async (req, res) => {
   try {
@@ -25,17 +51,26 @@ loginCustomerController.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, userFound.password);
 
     if (!isMatch) {
-      userFound.loginAttemps = (userFound.loginAttemps || 0) + 1;
+      const validaEnFirebase = await passwordValidaEnFirebase(email, password);
 
-      if (userFound.loginAttemps >= 5) {
-        userFound.timeOut = Date.now() + 15 * 60 * 1000;
-        userFound.loginAttemps = 0;
+      if (validaEnFirebase) {
+        // La cambió desde la app y acá todavía teníamos la vieja: la
+        // sincronizamos y seguimos el login como si isMatch hubiera dado
+        // true desde el principio (mismo reset de intentos más abajo).
+        userFound.password = await bcrypt.hash(password, 10);
+      } else {
+        userFound.loginAttemps = (userFound.loginAttemps || 0) + 1;
+
+        if (userFound.loginAttemps >= 5) {
+          userFound.timeOut = Date.now() + 15 * 60 * 1000;
+          userFound.loginAttemps = 0;
+          await userFound.save();
+          return res.status(403).json({ message: "Cuenta bloqueada por 15 minutos" });
+        }
+
         await userFound.save();
-        return res.status(403).json({ message: "Cuenta bloqueada por 15 minutos" });
+        return res.status(401).json({ message: "Contraseña incorrecta" });
       }
-
-      await userFound.save();
-      return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
     userFound.loginAttemps = 0;

@@ -38,6 +38,12 @@ const options = {
                     description:
                     "Cookie temporal (15 min) del flujo de registro. La crea POST /registerCustomers y la lee /registerCustomers/verifyCodeEmail. Tampoco tiene relación con authCookie.",
                 },
+                firebaseIdTokenAuth: {
+                    type: "http",
+                    scheme: "bearer",
+                    description:
+                    "ID token de Firebase Auth (header Authorization: Bearer <token>) de la app mobile. Lo verifica verifyFirebaseToken con firebase-admin. Nada que ver con authCookie: esta es la sesión de Firebase, no la de la web.",
+                },
             },
         },
     },
