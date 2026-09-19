@@ -19,7 +19,8 @@
       },
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.catneid.appleflymobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
