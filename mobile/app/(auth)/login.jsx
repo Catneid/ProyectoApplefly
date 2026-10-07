@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 
 import AuthScreen from '../../src/components/AuthScreen';
 import TextField from '../../src/components/TextField';
@@ -12,6 +12,8 @@ import { fonts, sizes } from '../../src/theme/typography';
 
 export default function Login() {
   const { login } = useAuth();
+  // Llega con recuperada=1 al terminar de cambiar la contraseña (recuperar-password)
+  const { recuperada } = useLocalSearchParams();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,7 +52,7 @@ export default function Login() {
       subtitle="Bienvenido de nuevo a Applefly"
       footer={
         <>
-          <Link href="/(auth)/recuperar-password" style={styles.link}>
+          <Link href="/recuperar-password" style={styles.link}>
             ¿Olvidaste tu contraseña?
           </Link>
           <Text style={styles.alt}>
@@ -62,6 +64,12 @@ export default function Login() {
         </>
       }
     >
+      {recuperada ? (
+        <Text style={styles.exito}>
+          Tu contraseña se actualizó. Inicia sesión con la nueva.
+        </Text>
+      ) : null}
+
       <TextField
         label="Correo electrónico"
         placeholder="tu@email.com"
@@ -94,6 +102,12 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  exito: {
+    fontFamily: fonts.medium,
+    fontSize: sizes.sm,
+    color: colors.success,
+    marginBottom: 16,
+  },
   errorGeneral: {
     fontFamily: fonts.medium,
     fontSize: sizes.sm,

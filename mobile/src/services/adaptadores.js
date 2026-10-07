@@ -47,3 +47,39 @@ export function mapearResena(r) {
 export function mapearPedido(o) {
   return { ...o, id: o._id };
 }
+
+// El cliente que devuelve GET/PUT /api/profile, con la forma que usa la
+// pantalla de perfil.
+//
+// - birthdate: la web guarda solo la fecha ("2000-05-17" = medianoche UTC) y la
+//   app la guarda como medianoche LOCAL (JSON.stringify de un Date). Una
+//   medianoche UTC exacta se lee con sus componentes UTC, para que el día no
+//   se corra hacia atrás en El Salvador (UTC-6).
+// - name: un cliente creado desde Firebase sin completar su perfil se llama
+//   "Cliente" (es un nombre de relleno, no el de la persona).
+export function mapearPerfil(c) {
+  let birthdate = null;
+  if (c.birthdate) {
+    const fecha = new Date(c.birthdate);
+    if (!Number.isNaN(fecha.getTime())) {
+      const esSoloFecha =
+        fecha.getUTCHours() === 0 && fecha.getUTCMinutes() === 0 && fecha.getUTCSeconds() === 0;
+      birthdate = esSoloFecha
+        ? new Date(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())
+        : fecha;
+    }
+  }
+
+  const sinCompletar = c.name === 'Cliente' && !c.lastName;
+
+  return {
+    id: c._id,
+    name: sinCompletar ? '' : c.name ?? '',
+    lastName: c.lastName ?? '',
+    phone: c.phone ?? '',
+    address: c.address ?? '',
+    photoURL: c.photoURL ?? null,
+    birthdate,
+    sinCompletar,
+  };
+}

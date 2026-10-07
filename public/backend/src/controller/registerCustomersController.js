@@ -8,13 +8,15 @@ import {
 } from "../utils/verificationCode.js";
 import { authCookieOptions } from "../utils/cookieOptions.js";
 import { TOKEN_TYP } from "../utils/tokenTypes.js";
-import { esCorreo } from "../utils/validaciones.js";
+import { esCorreo, leerNombre, leerFechaNacimiento } from "../utils/validaciones.js";
 import { config } from "../../config.js";
 
 const registerCustomerController = {};
 
+const PASSWORD_MIN = 6;
+
 registerCustomerController.register = async (req, res) => {
-  const { name, lastName, birthdate, email, password } = req.body;
+  const { email, password } = req.body;
 
   try {
     // Todo texto: un objeto en el correo llegaría a la consulta de Mongo como
@@ -22,12 +24,24 @@ registerCustomerController.register = async (req, res) => {
     if (!esCorreo(email)) {
       return res.status(400).json({ message: "Correo inválido" });
     }
-    if (typeof password !== "string" || !password) {
-      return res.status(400).json({ message: "La contraseña es requerida" });
+
+    const nombre = leerNombre(req.body.name, "nombre");
+    if (nombre.error) return res.status(400).json({ message: nombre.error });
+    const apellido = leerNombre(req.body.lastName, "apellido");
+    if (apellido.error) return res.status(400).json({ message: apellido.error });
+
+    // Obligatoria, entre 18 y 100 años
+    const nacimiento = leerFechaNacimiento(req.body.birthdate);
+    if (nacimiento.error) return res.status(400).json({ message: nacimiento.error });
+
+    if (typeof password !== "string" || password.length < PASSWORD_MIN) {
+      return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres` });
     }
-    if (typeof name !== "string" || typeof lastName !== "string") {
-      return res.status(400).json({ message: "El nombre y el apellido son requeridos" });
-    }
+
+    // Desde acá se usan los valores ya limpios (sin espacios de más)
+    const name = nombre.valor;
+    const lastName = apellido.valor;
+    const birthdate = nacimiento.valor.toISOString();
 
     const existCustomer = await customerModel.findOne({ email });
     if (existCustomer) {

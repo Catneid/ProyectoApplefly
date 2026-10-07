@@ -9,6 +9,7 @@ import PrimaryButton from '../../src/components/PrimaryButton';
 import { useAuth } from '../../src/context/AuthContext';
 import { mensajeErrorFirebase } from '../../src/services/firebaseErrors';
 import { colors } from '../../src/theme/colors';
+import { campoRequerido, esCorreo, LONGITUD_MAX, validarDatosPersonales } from '../../src/utils/validaciones';
 import { fonts, sizes } from '../../src/theme/typography';
 
 export default function Registro() {
@@ -30,13 +31,21 @@ export default function Registro() {
 
   const actualizar = (campo) => (valor) => setForm((prev) => ({ ...prev, [campo]: valor }));
 
+  // Todos los campos son obligatorios. Los datos personales (nombre, apellido,
+  // edad 18-100, teléfono, dirección) se validan con las mismas reglas que el
+  // perfil y que el servidor; el correo y las contraseñas, acá.
   const validar = () => {
-    const nuevos = {};
-    if (!form.name.trim() || form.name.trim().length < 2) nuevos.name = 'Mínimo 2 caracteres';
-    if (!form.email.trim()) nuevos.email = 'El correo es requerido';
-    else if (!/^\S+@\S+\.\S+$/.test(form.email)) nuevos.email = 'Correo inválido';
-    if (!form.password || form.password.length < 6) nuevos.password = 'Mínimo 6 caracteres';
-    if (form.confirmPassword !== form.password) nuevos.confirmPassword = 'Las contraseñas no coinciden';
+    const nuevos = validarDatosPersonales({ ...form, birthdate });
+
+    if (!campoRequerido(form.email)) nuevos.email = 'El correo es requerido';
+    else if (!esCorreo(form.email)) nuevos.email = 'Correo inválido';
+
+    if (!campoRequerido(form.password)) nuevos.password = 'La contraseña es requerida';
+    else if (form.password.length < 6) nuevos.password = 'Mínimo 6 caracteres';
+
+    if (!campoRequerido(form.confirmPassword)) nuevos.confirmPassword = 'Confirma tu contraseña';
+    else if (form.confirmPassword !== form.password) nuevos.confirmPassword = 'Las contraseñas no coinciden';
+
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
@@ -91,6 +100,7 @@ export default function Registro() {
             placeholder="Tu nombre"
             value={form.name}
             onChangeText={actualizar('name')}
+            maxLength={LONGITUD_MAX.nombre}
             error={errores.name}
           />
         </View>
@@ -100,6 +110,8 @@ export default function Registro() {
             placeholder="Tu apellido"
             value={form.lastName}
             onChangeText={actualizar('lastName')}
+            maxLength={LONGITUD_MAX.nombre}
+            error={errores.lastName}
           />
         </View>
       </View>
@@ -115,21 +127,30 @@ export default function Registro() {
         error={errores.email}
       />
 
-      <DateField label="Fecha de nacimiento" value={birthdate} onChange={setBirthdate} />
+      <DateField
+        label="Fecha de nacimiento"
+        value={birthdate}
+        onChange={setBirthdate}
+        error={errores.birthdate}
+      />
 
       <TextField
         label="Teléfono"
-        placeholder="Tu teléfono"
+        placeholder="7777-7777"
         keyboardType="phone-pad"
         value={form.phone}
         onChangeText={actualizar('phone')}
+        maxLength={9}
+        error={errores.phone}
       />
 
       <TextField
         label="Dirección"
-        placeholder="Tu dirección"
+        placeholder="Colonia, calle, número de casa"
         value={form.address}
         onChangeText={actualizar('address')}
+        maxLength={LONGITUD_MAX.direccion}
+        error={errores.address}
       />
 
       <TextField

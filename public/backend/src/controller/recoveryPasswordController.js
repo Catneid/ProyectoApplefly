@@ -9,6 +9,7 @@ import {
 import { authCookieOptions } from "../utils/cookieOptions.js";
 import { TOKEN_TYP } from "../utils/tokenTypes.js";
 import { esCorreo } from "../utils/validaciones.js";
+import { sincronizarPasswordEnFirebase } from "../utils/firebasePassword.js";
 
 import { config } from "../../config.js";
 
@@ -25,12 +26,18 @@ const CLEAR_OPTIONS = authCookieOptions;
 
 const EXPIRADO = "El código expiró, solicítalo de nuevo";
 
-// Lee y valida la cookie de recuperación. Devuelve el token decodificado, o
-// null si falta, está vencida, está manipulada o NO es un token de recuperación
+// Lee y valida el token de recuperación. Devuelve el token decodificado, o
+// null si falta, está vencido, está manipulado o NO es un token de recuperación
 // (por ejemplo, una sesión o un token de registro pegados acá).
-const leerCookieRecuperacion = (req) => {
-  const token = req.cookies.recoveryCookie;
-  if (!token) return null;
+//
+// Llega por la cookie recoveryCookie (la web) o, si no hay cookie, por el
+// header X-Recovery-Token (la app: en React Native las cookies no son
+// confiables, así que requestCode y verifyCode también devuelven el token en el
+// body y la app lo manda de vuelta en el header). Es el mismo JWT, con las
+// mismas comprobaciones: la cookie tiene prioridad si llegan las dos.
+const leerTokenRecuperacion = (req) => {
+  const token = req.cookies?.recoveryCookie || req.get("X-Recovery-Token");
+  if (typeof token !== "string" || !token) return null;
 
   try {
     const decoded = jsonwebtoken.verify(token, config.JWT.secret);
@@ -123,7 +130,9 @@ recoveryPasswordController.requestCode = async (req, res) => {
         .catch((error) => console.log("error al enviar correo de recuperación: " + error));
     }
 
-    return res.status(200).json({ message: GENERIC_MESSAGE });
+    // El token también va en el body (para la app, que no usa cookies). Se
+    // devuelve exista o no el correo, igual que la cookie: no delata nada.
+    return res.status(200).json({ message: GENERIC_MESSAGE, token });
   } catch (error) {
     console.log("error" + error);
     return res.status(500).json({ message: "Error interno del servidor" });
@@ -135,7 +144,7 @@ recoveryPasswordController.verifyCode = async (req, res) => {
   try {
     const { codeRequest } = req.body;
 
-    const decoded = leerCookieRecuperacion(req);
+    const decoded = leerTokenRecuperacion(req);
     if (!decoded || decoded.verified || !decoded.codeHash || !decoded.jti) {
       res.clearCookie("recoveryCookie", CLEAR_OPTIONS);
       return res.status(400).json({ message: EXPIRADO });
@@ -177,7 +186,7 @@ recoveryPasswordController.verifyCode = async (req, res) => {
 
     res.cookie("recoveryCookie", newToken, COOKIE_OPTIONS);
 
-    return res.status(200).json({ message: "Código verificado correctamente" });
+    return res.status(200).json({ message: "Código verificado correctamente", token: newToken });
   } catch (error) {
     console.log("error" + error);
     return res.status(500).json({ message: "Error interno del servidor" });
@@ -198,7 +207,7 @@ recoveryPasswordController.newPassword = async (req, res) => {
     }
 
     // Cookie ausente, vencida, manipulada o de otro tipo: todo es "expiró"
-    const decoded = leerCookieRecuperacion(req);
+    const decoded = leerTokenRecuperacion(req);
     if (!decoded || !decoded.jti) {
       return res.status(400).json({ message: EXPIRADO });
     }
@@ -217,10 +226,17 @@ recoveryPasswordController.newPassword = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    await customerModel.findOneAndUpdate(
+    const cliente = await customerModel.findOneAndUpdate(
       { email: decoded.email },
-      { password: passwordHash, loginAttemps: 0, timeOut: null }
+      { password: passwordHash, loginAttemps: 0, timeOut: null },
+      { returnDocument: "after" }
     );
+
+    // La app entra con Firebase: la misma contraseña tiene que valer allá.
+    // Si Firebase falla solo queda en el log; la de la web ya cambió.
+    if (cliente) {
+      await sincronizarPasswordEnFirebase(cliente, decoded.email, newPassword);
+    }
 
     res.clearCookie("recoveryCookie", CLEAR_OPTIONS);
 

@@ -140,6 +140,12 @@
   margin-bottom: 8px;
 }
 
+.resenas__error {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--color-danger);
+}
+
 .resenas__campo textarea {
   padding: 11px 13px;
   border: 1px solid #d2d2d7;

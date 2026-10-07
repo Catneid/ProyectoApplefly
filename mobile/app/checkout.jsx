@@ -2,23 +2,27 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, getDoc } from 'firebase/firestore';
 
 import PrimaryButton from '../src/components/PrimaryButton';
 import RutaProtegida from '../src/components/RutaProtegida';
 import TextField from '../src/components/TextField';
 import { useAuth } from '../src/context/AuthContext';
 import { useCart } from '../src/context/CartContext';
+import { mapearPerfil } from '../src/services/adaptadores';
+import { apiFetch } from '../src/services/api';
 import { revisarCarritoContraCatalogo } from '../src/services/carritoCatalogo';
-import { db } from '../src/services/firebase';
 import { cobrarConWompi } from '../src/services/paymentsApi';
 import { colors } from '../src/theme/colors';
 import { fonts, sizes } from '../src/theme/typography';
+import {
+  formatearNumeroTarjeta, soloDigitos, validarTarjeta,
+} from '../src/utils/validaciones';
 
 // Tarjeta de prueba de Wompi (cuenta en modo test: viaja de verdad a la
 // API, pero no cobra dinero real). Mismos valores que usa la web en
 // public/frontend/src/screens/Checkout.jsx.
 const TARJETA_DEMO = { numero: '4573 6900 0199 0693', cvv: '835', mes: '12', anio: '2029' };
+const TITULAR_DEMO = 'Cliente Prueba';
 
 function Seccion({ titulo, children }) {
   return (
@@ -34,25 +38,24 @@ function CheckoutContenido() {
   const { items, subtotal, shipping, tax, total, vaciarCarrito, reemplazarItems } = useCart();
 
   const [envio, setEnvio] = useState({ nombre: '', apellido: '', direccion: '', ciudad: '', telefono: '' });
-  const [tarjeta, setTarjeta] = useState({ numero: '', mes: '', anio: '', cvv: '' });
+  const [tarjeta, setTarjeta] = useState({ numero: '', mes: '', anio: '', cvv: '', titular: '' });
   const [errores, setErrores] = useState({});
   const [procesando, setProcesando] = useState(false);
 
+  // Datos de envío precargados desde el perfil de la API (la misma fuente que
+  // la pantalla Perfil). Si no se puede, el formulario queda vacío y se llena a mano.
   useEffect(() => {
     (async () => {
       if (!user) return;
       try {
-        const perfilSnap = await getDoc(doc(db, 'users', user.uid));
-        if (perfilSnap.exists()) {
-          const perfil = perfilSnap.data();
-          setEnvio((prev) => ({
-            ...prev,
-            nombre: perfil.name || '',
-            apellido: perfil.lastName || '',
-            direccion: perfil.address || '',
-            telefono: perfil.phone || '',
-          }));
-        }
+        const perfil = mapearPerfil(await apiFetch('/profile', { auth: true }));
+        setEnvio((prev) => ({
+          ...prev,
+          nombre: perfil.name,
+          apellido: perfil.lastName,
+          direccion: perfil.address,
+          telefono: perfil.phone,
+        }));
       } catch (e) {
         console.warn('[checkout] No se pudo precargar el perfil:', e.message);
       }
@@ -60,9 +63,24 @@ function CheckoutContenido() {
   }, [user]);
 
   const actualizarEnvio = (campo) => (valor) => setEnvio((prev) => ({ ...prev, [campo]: valor }));
-  const actualizarTarjeta = (campo) => (valor) => setTarjeta((prev) => ({ ...prev, [campo]: valor }));
+  // Los campos numéricos de la tarjeta solo aceptan dígitos (y el número se
+  // muestra con un espacio cada 4); `limite` es el máximo de dígitos.
+  const actualizarTarjeta = (campo) => (valor) => {
+    let limpio = valor;
+    if (campo === 'numero') limpio = formatearNumeroTarjeta(valor);
+    else if (campo === 'mes') limpio = soloDigitos(valor).slice(0, 2);
+    else if (campo === 'anio') limpio = soloDigitos(valor).slice(0, 4);
+    else if (campo === 'cvv') limpio = soloDigitos(valor).slice(0, 4);
 
-  const usarTarjetaDemo = () => setTarjeta(TARJETA_DEMO);
+    setTarjeta((prev) => ({ ...prev, [campo]: limpio }));
+    setErrores((prev) => ({ ...prev, [campo]: undefined }));
+  };
+
+  const usarTarjetaDemo = () =>
+    setTarjeta({
+      ...TARJETA_DEMO,
+      titular: `${envio.nombre} ${envio.apellido}`.trim().replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]/g, '') || TITULAR_DEMO,
+    });
 
   const validar = () => {
     const nuevos = {};
@@ -73,11 +91,8 @@ function CheckoutContenido() {
     if (!envio.ciudad.trim()) nuevos.ciudad = 'Requerido';
     if (!/^[0-9]{4}-?[0-9]{4}$/.test(envio.telefono.trim())) nuevos.telefono = 'Formato: 7777-7777';
 
-    const numeroLimpio = tarjeta.numero.replace(/\s/g, '');
-    if (numeroLimpio.length < 15) nuevos.numero = 'El número de tarjeta está incompleto';
-    if (!(+tarjeta.mes >= 1 && +tarjeta.mes <= 12)) nuevos.mes = 'Mes inválido';
-    if (tarjeta.anio.trim().length !== 4) nuevos.anio = 'Usa 4 dígitos';
-    if (!/^[0-9]{3,4}$/.test(tarjeta.cvv.trim())) nuevos.cvv = '3 o 4 dígitos';
+    // Mismas reglas que el servidor (leerTarjeta en public/backend)
+    Object.assign(nuevos, validarTarjeta(tarjeta));
 
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
@@ -124,7 +139,14 @@ function CheckoutContenido() {
         items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
         address: `${envio.direccion.trim()}, ${envio.ciudad.trim()}`,
         phone: envio.telefono.trim(),
-        tarjeta: { ...tarjeta, titular: `${envio.nombre.trim()} ${envio.apellido.trim()}`.trim() },
+        tarjeta: {
+          // Sin los espacios con que se muestra el número, y el mes con dos dígitos
+          numero: soloDigitos(tarjeta.numero),
+          mes: tarjeta.mes.padStart(2, '0'),
+          anio: tarjeta.anio,
+          cvv: tarjeta.cvv,
+          titular: tarjeta.titular.trim(),
+        },
         customerName: `${envio.nombre.trim()} ${envio.apellido.trim()}`.trim(),
       });
 
@@ -225,18 +247,30 @@ function CheckoutContenido() {
             keyboardType="numeric"
             value={tarjeta.numero}
             onChangeText={actualizarTarjeta('numero')}
+            maxLength={23}
             error={errores.numero}
+          />
+
+          <TextField
+            label="Titular de la tarjeta"
+            placeholder="Como aparece en la tarjeta"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            value={tarjeta.titular}
+            onChangeText={actualizarTarjeta('titular')}
+            maxLength={100}
+            error={errores.titular}
           />
 
           <View style={styles.fila3}>
             <View style={styles.tercio}>
-              <TextField label="Mes" placeholder="12" keyboardType="numeric" value={tarjeta.mes} onChangeText={actualizarTarjeta('mes')} error={errores.mes} />
+              <TextField label="Mes" placeholder="12" keyboardType="numeric" maxLength={2} value={tarjeta.mes} onChangeText={actualizarTarjeta('mes')} error={errores.mes} />
             </View>
             <View style={styles.tercio}>
-              <TextField label="Año" placeholder="2029" keyboardType="numeric" value={tarjeta.anio} onChangeText={actualizarTarjeta('anio')} error={errores.anio} />
+              <TextField label="Año" placeholder="2029" keyboardType="numeric" maxLength={4} value={tarjeta.anio} onChangeText={actualizarTarjeta('anio')} error={errores.anio} />
             </View>
             <View style={styles.tercio}>
-              <TextField label="CVV" placeholder="835" keyboardType="numeric" secureTextEntry value={tarjeta.cvv} onChangeText={actualizarTarjeta('cvv')} error={errores.cvv} />
+              <TextField label="CVV" placeholder="835" keyboardType="numeric" maxLength={4} secureTextEntry value={tarjeta.cvv} onChangeText={actualizarTarjeta('cvv')} error={errores.cvv} />
             </View>
           </View>
         </Seccion>

@@ -5,6 +5,10 @@ import toast from 'react-hot-toast';
 import { usePerfil } from '../hooks/usePerfil.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
+import {
+  LONGITUD_MAX, fechaMaximaNacimiento, fechaMinimaNacimiento, reglaDireccion, reglaFechaNacimiento,
+  reglaNombre, reglaTelefono,
+} from '../utils/validaciones.js';
 import './Perfil.css';
 
 const Perfil = () => {
@@ -96,14 +100,23 @@ const Perfil = () => {
               <div className="perfil__row">
                 <div className="perfil__field">
                   <label>Nombre</label>
-                  <input {...formDatos.register('name', { required: 'El nombre es requerido' })} />
+                  <input
+                    maxLength={LONGITUD_MAX.nombre}
+                    {...formDatos.register('name', { validate: reglaNombre('nombre') })}
+                  />
                   {formDatos.formState.errors.name && (
                     <span className="perfil__error-msg">{formDatos.formState.errors.name.message}</span>
                   )}
                 </div>
                 <div className="perfil__field">
                   <label>Apellido</label>
-                  <input {...formDatos.register('lastName')} />
+                  <input
+                    maxLength={LONGITUD_MAX.nombre}
+                    {...formDatos.register('lastName', { validate: reglaNombre('apellido') })}
+                  />
+                  {formDatos.formState.errors.lastName && (
+                    <span className="perfil__error-msg">{formDatos.formState.errors.lastName.message}</span>
+                  )}
                 </div>
               </div>
 
@@ -119,9 +132,8 @@ const Perfil = () => {
                   <label>Teléfono</label>
                   <input
                     placeholder="7777-7777"
-                    {...formDatos.register('phone', {
-                      pattern: { value: /^[0-9]{4}-?[0-9]{4}$/, message: 'Formato: 7777-7777' },
-                    })}
+                    maxLength={9}
+                    {...formDatos.register('phone', { validate: reglaTelefono })}
                   />
                   {formDatos.formState.errors.phone && (
                     <span className="perfil__error-msg">{formDatos.formState.errors.phone.message}</span>
@@ -129,13 +141,28 @@ const Perfil = () => {
                 </div>
                 <div className="perfil__field">
                   <label>Fecha de nacimiento</label>
-                  <input type="date" {...formDatos.register('birthdate')} />
+                  <input
+                    type="date"
+                    min={fechaMinimaNacimiento()}
+                    max={fechaMaximaNacimiento()}
+                    {...formDatos.register('birthdate', { validate: reglaFechaNacimiento })}
+                  />
+                  {formDatos.formState.errors.birthdate && (
+                    <span className="perfil__error-msg">{formDatos.formState.errors.birthdate.message}</span>
+                  )}
                 </div>
               </div>
 
               <div className="perfil__field">
                 <label>Dirección</label>
-                <input placeholder="Tu dirección de envío" {...formDatos.register('address')} />
+                <input
+                  placeholder="Tu dirección de envío"
+                  maxLength={LONGITUD_MAX.direccion}
+                  {...formDatos.register('address', { validate: reglaDireccion })}
+                />
+                {formDatos.formState.errors.address && (
+                  <span className="perfil__error-msg">{formDatos.formState.errors.address.message}</span>
+                )}
               </div>
 
               <Boton

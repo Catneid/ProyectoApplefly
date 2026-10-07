@@ -52,3 +52,17 @@ export async function crearResena({ productId, rating, comment }) {
   });
   return mapearResena(review);
 }
+
+// Editar la reseña propia. Mismas reglas que al crearla (entero 1-5, comentario 3-500).
+export async function editarResena(id, { rating, comment }) {
+  const { review } = await apiFetch(`/reviews/${id}`, {
+    method: 'PUT',
+    auth: true,
+    body: { rating, comment },
+  });
+  return mapearResena(review);
+}
+
+export async function eliminarResena(id) {
+  await apiFetch(`/reviews/${id}`, { method: 'DELETE', auth: true });
+}

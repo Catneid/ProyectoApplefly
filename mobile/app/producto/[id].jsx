@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +11,14 @@ import FormularioResena from '../../src/components/FormularioResena';
 import PrimaryButton from '../../src/components/PrimaryButton';
 import { useAuth } from '../../src/context/AuthContext';
 import { useCart } from '../../src/context/CartContext';
-import { crearResena, getProductoPorId, getResenasPorProducto, puedeResenar } from '../../src/services/products';
+import {
+  crearResena,
+  editarResena,
+  eliminarResena,
+  getProductoPorId,
+  getResenasPorProducto,
+  puedeResenar,
+} from '../../src/services/products';
 import { colors } from '../../src/theme/colors';
 import { fonts, sizes } from '../../src/theme/typography';
 
@@ -50,6 +57,8 @@ export default function ProductoDetalle() {
   // Solo quien compró el producto puede reseñarlo (una vez). Lo decide el
   // backend; null mientras carga o si no hay sesión.
   const [permisoResena, setPermisoResena] = useState(null);
+  // true mientras se edita la reseña propia (en vez de mostrarla)
+  const [editandoResena, setEditandoResena] = useState(false);
 
   const cargarProducto = async () => {
     try {
@@ -116,15 +125,45 @@ export default function ProductoDetalle() {
     }
   };
 
-  const manejarNuevaResena = async ({ rating, comment }) => {
-    await crearResena({ productId: id, rating, comment });
-    // Se actualizan la lista, el permiso (ya no puede reseñar de nuevo) y el
-    // producto (cambió su promedio de estrellas)
-    await Promise.all([
+  // Después de crear, editar o eliminar una reseña se actualizan la lista, el
+  // permiso (qué puede hacer esta persona ahora) y el producto (cambió su
+  // promedio de estrellas).
+  const recargarTodoDeResenas = () =>
+    Promise.all([
       cargarResenas(),
       cargarPermisoResena(),
       // Recarga silenciosa: sin el spinner de pantalla completa de cargarProducto
       getProductoPorId(id).then((actualizado) => actualizado && setProducto(actualizado)).catch(() => {}),
+    ]);
+
+  const manejarNuevaResena = async ({ rating, comment }) => {
+    await crearResena({ productId: id, rating, comment });
+    await recargarTodoDeResenas();
+  };
+
+  const manejarEdicionResena = async ({ rating, comment }) => {
+    await editarResena(permisoResena.miReview.id, { rating, comment });
+    setEditandoResena(false);
+    await recargarTodoDeResenas();
+  };
+
+  // Pide confirmación: borrar una reseña no se puede deshacer
+  const confirmarEliminarResena = () => {
+    Alert.alert('Eliminar reseña', '¿Seguro que quieres eliminar tu reseña? No se puede deshacer.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eliminarResena(permisoResena.miReview.id);
+            setEditandoResena(false);
+            await recargarTodoDeResenas();
+          } catch (e) {
+            Alert.alert('No se pudo eliminar', e.message);
+          }
+        },
+      },
     ]);
   };
 
@@ -237,11 +276,35 @@ export default function ProductoDetalle() {
           )}
 
           {!user ? (
-            <Text style={styles.iniciaSesion}>Iniciá sesión para dejar tu reseña.</Text>
-          ) : !permisoResena ? null : permisoResena.puedeResenar ? (
+            <Text style={styles.iniciaSesion}>Inicia sesión para dejar tu reseña.</Text>
+          ) : !permisoResena ? null : permisoResena.miReview ? (
+            editandoResena ? (
+              <FormularioResena
+                inicial={{ rating: permisoResena.miReview.rating, comment: permisoResena.miReview.comment }}
+                onEnviar={manejarEdicionResena}
+                onCancelar={() => setEditandoResena(false)}
+              />
+            ) : (
+              <View style={styles.miResena}>
+                <View style={styles.resenaHeader}>
+                  <Text style={styles.resenaNombre}>Tu reseña</Text>
+                  <Estrellas cantidad={permisoResena.miReview.rating} tamano={14} />
+                </View>
+                {permisoResena.miReview.comment ? (
+                  <Text style={styles.resenaComentario}>{permisoResena.miReview.comment}</Text>
+                ) : null}
+                <View style={styles.miResenaAcciones}>
+                  <Pressable onPress={() => setEditandoResena(true)} hitSlop={8}>
+                    <Text style={styles.accionEditar}>Editar</Text>
+                  </Pressable>
+                  <Pressable onPress={confirmarEliminarResena} hitSlop={8}>
+                    <Text style={styles.accionEliminar}>Eliminar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )
+          ) : permisoResena.puedeResenar ? (
             <FormularioResena onEnviar={manejarNuevaResena} />
-          ) : permisoResena.miReview ? (
-            <Text style={styles.iniciaSesion}>Ya dejaste tu reseña en este producto. ¡Gracias!</Text>
           ) : (
             <Text style={styles.iniciaSesion}>
               {permisoResena.motivo || 'Solo quienes compraron este producto pueden dejar una reseña.'}
@@ -262,6 +325,30 @@ export default function ProductoDetalle() {
 }
 
 const styles = StyleSheet.create({
+  miResena: {
+    marginTop: 20,
+    padding: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+  },
+  miResenaAcciones: {
+    flexDirection: 'row',
+    gap: 20,
+    marginTop: 4,
+  },
+  accionEditar: {
+    fontFamily: fonts.semiBold,
+    fontSize: sizes.sm,
+    color: colors.primaryDark,
+  },
+  accionEliminar: {
+    fontFamily: fonts.semiBold,
+    fontSize: sizes.sm,
+    color: colors.danger,
+  },
   safe: {
     flex: 1,
     backgroundColor: colors.bg,

@@ -20,8 +20,9 @@ router.route("/password").put(verifyToken, profileController.changePassword);
  *     tags: [Perfil - App móvil]
  *     summary: Sube la foto de perfil de la app a Cloudinary
  *     description: >
- *       No toca Mongo ni Firestore: solo sube la imagen y devuelve su
- *       secure_url. La app guarda esa URL en "users/{uid}".photoURL.
+ *       Sube la imagen, guarda su URL en el cliente de Mongo (photoURL, que
+ *       devuelve GET /profile) y la devuelve como secure_url. La app además la
+ *       copia a "users/{uid}".photoURL en Firestore.
  *     security:
  *       - firebaseIdTokenAuth: []
  *     requestBody:
@@ -40,6 +41,8 @@ router.route("/password").put(verifyToken, profileController.changePassword);
  *         description: Imagen subida
  *       400:
  *         description: Falta la imagen
+ *       403:
+ *         description: El cliente todavía no existe (correo sin verificar)
  *       401:
  *         description: Falta el token de Firebase, o es inválido/expiró
  *       500:

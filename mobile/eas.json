@@ -10,16 +10,31 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://applefly-public-backend.onrender.com",
-        "EXPO_PUBLIC_LEGACY_API_URL": "https://applefly-public-backend.onrender.com"
+        "EXPO_PUBLIC_LEGACY_API_URL": "https://applefly-public-backend.onrender.com",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBYfvliQBeJhGV8_viXqLqHY3zAveNuUYY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "applefly-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "applefly-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "applefly-app.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "298226984054",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:298226984054:web:8784c1b218c8538517ab57"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://applefly-public-backend.onrender.com",
-        "EXPO_PUBLIC_LEGACY_API_URL": "https://applefly-public-backend.onrender.com"
+        "EXPO_PUBLIC_LEGACY_API_URL": "https://applefly-public-backend.onrender.com",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBYfvliQBeJhGV8_viXqLqHY3zAveNuUYY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "applefly-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "applefly-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "applefly-app.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "298226984054",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:298226984054:web:8784c1b218c8538517ab57"
       }
     }
   },

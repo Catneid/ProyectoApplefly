@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from '../components/Boton.jsx';
+import {
+  LONGITUD_MAX, fechaMaximaNacimiento, fechaMinimaNacimiento, reglaFechaNacimiento, reglaNombre,
+} from '../utils/validaciones.js';
 import './Auth.css';
 
 const Registro = () => {
@@ -27,9 +30,9 @@ const Registro = () => {
 
     try {
       await registerUser({
-        name: data.name,
-        lastName: data.lastName || '',
-        birthdate: data.birthdate || null,
+        name: data.name.trim(),
+        lastName: data.lastName.trim(),
+        birthdate: data.birthdate,
         email: data.email,
         password: data.password,
       });
@@ -56,13 +59,20 @@ const Registro = () => {
                 <input
                   className={`auth__input ${errors.name ? 'auth__input--error' : ''}`}
                   placeholder="Tu nombre"
-                  {...register('name', { required: 'Nombre requerido', minLength: { value: 2, message: 'Mínimo 2 caracteres' } })}
+                  maxLength={LONGITUD_MAX.nombre}
+                  {...register('name', { validate: reglaNombre('nombre') })}
                 />
                 {errors.name && <span className="auth__error-msg">{errors.name.message}</span>}
               </div>
               <div className="auth__field">
-                <label className="auth__label">Apellido</label>
-                <input className="auth__input" placeholder="Tu apellido" {...register('lastName')} />
+                <label className="auth__label">Apellido *</label>
+                <input
+                  className={`auth__input ${errors.lastName ? 'auth__input--error' : ''}`}
+                  placeholder="Tu apellido"
+                  maxLength={LONGITUD_MAX.nombre}
+                  {...register('lastName', { validate: reglaNombre('apellido') })}
+                />
+                {errors.lastName && <span className="auth__error-msg">{errors.lastName.message}</span>}
               </div>
             </div>
 
@@ -74,15 +84,22 @@ const Registro = () => {
                 placeholder="tu@email.com"
                 {...register('email', {
                   required: 'El correo es requerido',
-                  pattern: { value: /^\S+@\S+$/i, message: 'Correo inválido' },
+                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Correo inválido' },
                 })}
               />
               {errors.email && <span className="auth__error-msg">{errors.email.message}</span>}
             </div>
 
             <div className="auth__field">
-              <label className="auth__label">Fecha de nacimiento</label>
-              <input type="date" className="auth__input" {...register('birthdate')} />
+              <label className="auth__label">Fecha de nacimiento *</label>
+              <input
+                type="date"
+                className={`auth__input ${errors.birthdate ? 'auth__input--error' : ''}`}
+                min={fechaMinimaNacimiento()}
+                max={fechaMaximaNacimiento()}
+                {...register('birthdate', { validate: reglaFechaNacimiento })}
+              />
+              {errors.birthdate && <span className="auth__error-msg">{errors.birthdate.message}</span>}
             </div>
 
             <div className="auth__field">

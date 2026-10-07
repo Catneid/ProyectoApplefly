@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useResenas } from '../hooks/useResenas.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Boton from './Boton.jsx';
+import { COMENTARIO, errorCalificacion, errorComentario } from '../utils/validaciones.js';
 import './ResenasProducto.css';
 
 // Selector de estrellas reutilizable. En modo lectura solo pinta;
@@ -36,9 +37,11 @@ const ResenasProducto = ({ productoId }) => {
   );
 
   const [editando, setEditando] = useState(false);
-  const [rating, setRating] = useState(5);
+  // Sin estrella elegida de entrada: la calificación es obligatoria
+  const [rating, setRating] = useState(0);
   const [comentario, setComentario] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [errores, setErrores] = useState({});
 
   const promedio =
     resenas.length > 0
@@ -48,22 +51,33 @@ const ResenasProducto = ({ productoId }) => {
   const abrirEdicion = () => {
     setRating(permiso.miResena.rating);
     setComentario(permiso.miResena.comment || '');
+    setErrores({});
     setEditando(true);
   };
 
   const enviar = async (e) => {
     e.preventDefault();
+
+    // Mismas reglas que el servidor: estrellas de 1 a 5 y comentario de 3 a 500
+    const nuevos = {};
+    const errorRating = errorCalificacion(rating);
+    const errorTexto = errorComentario(comentario);
+    if (errorRating) nuevos.rating = errorRating;
+    if (errorTexto) nuevos.comentario = errorTexto;
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
+
     setGuardando(true);
 
     try {
       if (editando) {
-        await editarResena(permiso.miResena._id, rating, comentario);
+        await editarResena(permiso.miResena._id, rating, comentario.trim());
         toast.success('Reseña actualizada');
         setEditando(false);
       } else {
-        await crearResena(rating, comentario);
+        await crearResena(rating, comentario.trim());
         toast.success('¡Gracias por tu reseña!');
-        setRating(5);
+        setRating(0);
         setComentario('');
       }
     } catch (err) {
@@ -127,29 +141,40 @@ const ResenasProducto = ({ productoId }) => {
       )}
 
       {user && (permiso.puedeResenar || editando) && (
-        <form onSubmit={enviar} className="resenas__form">
+        <form onSubmit={enviar} className="resenas__form" noValidate>
           <h3>{editando ? 'Edita tu reseña' : '¿Qué te pareció?'}</h3>
 
           <div className="resenas__campo">
             <label>Tu calificación</label>
-            <Estrellas valor={rating} onChange={setRating} />
+            <Estrellas
+              valor={rating}
+              onChange={(n) => {
+                setRating(n);
+                setErrores((prev) => ({ ...prev, rating: undefined }));
+              }}
+            />
+            {errores.rating && <span className="resenas__error">{errores.rating}</span>}
           </div>
 
           <div className="resenas__campo">
-            <label>Tu comentario (opcional)</label>
+            <label>Tu comentario *</label>
             <textarea
               rows={4}
-              maxLength={500}
+              maxLength={COMENTARIO.max}
               value={comentario}
-              placeholder="Cuéntanos tu experiencia con este producto..."
-              onChange={(e) => setComentario(e.target.value)}
+              placeholder={`Cuéntanos tu experiencia con este producto (${COMENTARIO.min} a ${COMENTARIO.max} caracteres)...`}
+              onChange={(e) => {
+                setComentario(e.target.value);
+                setErrores((prev) => ({ ...prev, comentario: undefined }));
+              }}
             />
-            <small>{comentario.length}/500</small>
+            {errores.comentario && <span className="resenas__error">{errores.comentario}</span>}
+            <small>{comentario.length}/{COMENTARIO.max}</small>
           </div>
 
           <div className="resenas__form-acciones">
             {editando && (
-              <Boton texto="Cancelar" variante="ghost" onClick={() => setEditando(false)} />
+              <Boton texto="Cancelar" variante="ghost" onClick={() => { setEditando(false); setErrores({}); }} />
             )}
             <Boton
               texto={guardando ? 'Enviando...' : editando ? 'Guardar cambios' : 'Publicar reseña'}

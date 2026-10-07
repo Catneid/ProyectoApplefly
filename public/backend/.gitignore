@@ -3,3 +3,4 @@ uploads/
 .env
 *.env
 firebaseServiceAccountKey.json
+scripts/demoUsers.md

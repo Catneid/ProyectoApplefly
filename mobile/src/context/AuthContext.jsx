@@ -4,7 +4,6 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendEmailVerification,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
@@ -141,12 +140,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => signOut(auth);
 
-  // Reemplaza toda la pantalla de "verificar código" de la web: Firebase
-  // manda su propio correo con un link para elegir una contraseña nueva.
-  const recuperarPassword = (email) => sendPasswordResetEmail(auth, email);
-
   return (
-    <AuthContext.Provider value={{ user, cargando, register, login, logout, recuperarPassword }}>
+    <AuthContext.Provider value={{ user, cargando, register, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

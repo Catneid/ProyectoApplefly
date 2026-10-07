@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { colors } from '../theme/colors';
+import { fechaMaximaNacimiento, fechaMinimaNacimiento } from '../utils/validaciones';
 import { fonts, sizes } from '../theme/typography';
 
 const formatearFecha = (fecha) => {
@@ -11,7 +12,9 @@ const formatearFecha = (fecha) => {
   return `${dia}/${mes}/${fecha.getFullYear()}`;
 };
 
-// Selector de fecha para birthdate. En Android el picker nativo ya es un
+// Selector de fecha para birthdate: solo deja elegir entre hoy menos 100 años
+// y hoy menos 18 años (la edad válida para registrarse). Si hay un error, lo
+// muestra debajo del campo. En Android el picker nativo ya es un
 // diálogo modal que se cierra solo; en iOS es un spinner inline, así que
 // necesita un botón "Listo" para cerrarlo.
 export default function DateField({ label, value, onChange, error }) {
@@ -23,6 +26,11 @@ export default function DateField({ label, value, onChange, error }) {
   const cerrarSiEsAndroid = () => {
     if (Platform.OS === 'android') setMostrar(false);
   };
+
+  const maxima = fechaMaximaNacimiento();
+  const minima = fechaMinimaNacimiento();
+  // Fecha con la que abre el selector: la elegida, o una dentro del rango
+  const inicial = value || new Date(Math.min(new Date(2000, 0, 1).getTime(), maxima.getTime()));
 
   const manejarSeleccion = (_event, fechaSeleccionada) => {
     cerrarSiEsAndroid();
@@ -46,10 +54,11 @@ export default function DateField({ label, value, onChange, error }) {
 
       {mostrar && (
         <DateTimePicker
-          value={value || new Date(2000, 0, 1)}
+          value={inicial}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          maximumDate={new Date()}
+          maximumDate={maxima}
+          minimumDate={minima}
           onValueChange={manejarSeleccion}
           onDismiss={cerrarSiEsAndroid}
         />

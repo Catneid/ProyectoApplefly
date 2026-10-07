@@ -21,17 +21,18 @@ export class ApiError extends Error {
   }
 }
 
+// `headers` agrega cabeceras propias (por ejemplo X-Recovery-Token).
 // `auth: true` manda el ID token de Firebase de la sesión actual como Bearer;
 // el backend lo traduce al cliente de Mongo. getIdToken() lo renueva solo si
 // está por vencer.
 export async function apiFetch(ruta, opciones = {}, yaReintentado = false) {
-  const { method = 'GET', body, auth: conSesion = false } = opciones;
+  const { method = 'GET', body, auth: conSesion = false, headers: extra } = opciones;
 
   if (!BASE_URL) {
     throw new Error('La app no está configurada (falta EXPO_PUBLIC_API_URL).');
   }
 
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', ...extra };
 
   if (conSesion) {
     const usuario = auth.currentUser;

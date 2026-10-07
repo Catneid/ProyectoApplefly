@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import reviewModel from "../models/reviews.js";
 import orderModel from "../models/orders.js";
+import { leerResena } from "../utils/validaciones.js";
 
 const reviewsController = {};
 
@@ -9,6 +10,19 @@ const reviewsController = {};
 // conversión de Mongo (500) en vez de un 400. (Los ids de la URL los valida el
 // router con validarId y responden 404.)
 const idValido = (id) => typeof id === "string" && mongoose.isObjectIdOrHexString(id);
+
+// Errores de datos del cliente (validación del modelo, valores que no se pueden
+// convertir) son 400, no 500; el índice único (una reseña por producto) también.
+const respuestaDeError = (error, res) => {
+  if (error?.name === "ValidationError" || error?.name === "CastError") {
+    return res.status(400).json({ message: error.name === "CastError" ? "Algún dato no es válido" : error.message });
+  }
+  if (error?.code === 11000) {
+    return res.status(400).json({ message: "Ya dejaste una reseña en este producto" });
+  }
+  console.log(error);
+  return res.status(500).json({ message: "Error interno" });
+};
 
 const comproElProducto = async (customerId, productId) => {
   const pedido = await orderModel.findOne({
@@ -60,15 +74,14 @@ reviewsController.canReview = async (req, res) => {
 
 reviewsController.createReview = async (req, res) => {
   try {
-    const { productId, rating, comment } = req.body;
+    const { productId } = req.body;
 
     if (!idValido(productId)) {
       return res.status(400).json({ message: "Producto inválido" });
     }
 
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ message: "La calificación debe ser de 1 a 5 estrellas" });
-    }
+    const { rating, comment, error } = leerResena(req.body);
+    if (error) return res.status(400).json({ message: error });
 
     if (!(await comproElProducto(req.user.id, productId))) {
       return res.status(403).json({ message: "Solo puedes valorar productos que hayas comprado" });
@@ -91,18 +104,14 @@ reviewsController.createReview = async (req, res) => {
 
     return res.status(201).json({ message: "¡Gracias por tu reseña!", review: newReview });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Error interno" });
+    return respuestaDeError(error, res);
   }
 };
 
 reviewsController.updateReview = async (req, res) => {
   try {
-    const { rating, comment } = req.body;
-
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ message: "La calificación debe ser de 1 a 5 estrellas" });
-    }
+    const { rating, comment, error } = leerResena(req.body);
+    if (error) return res.status(400).json({ message: error });
 
     const review = await reviewModel.findById(req.params.id);
     if (!review) return res.status(404).json({ message: "Reseña no encontrada" });
@@ -117,8 +126,7 @@ reviewsController.updateReview = async (req, res) => {
 
     return res.status(200).json({ message: "Reseña actualizada", review });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Error interno" });
+    return respuestaDeError(error, res);
   }
 };
 

@@ -17,9 +17,6 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
       "package": "com.catneid.appleflymobile"
     },
     "web": {
@@ -43,7 +40,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Applefly necesita acceso a tus fotos para que puedas elegir una foto de perfil."
+          "photosPermission": "Applefly necesita acceso a tus fotos para que puedas elegir una foto de perfil.",
+          "microphonePermission": false
         }
       ],
       [

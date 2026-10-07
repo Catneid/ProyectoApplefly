@@ -6,7 +6,7 @@ const reviewSchema = new Schema(
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customers", required: true },
     customerName: { type: String },
     rating: { type: Number, required: true, min: 1, max: 5 },
-    comment: { type: String, maxlength: 500 },
+    comment: { type: String, minlength: 3, maxlength: 500 },
   },
   { timestamps: true }
 );

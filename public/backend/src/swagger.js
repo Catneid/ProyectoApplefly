@@ -37,6 +37,13 @@ const options = {
                     description:
                     "Cookie temporal (15 min) del flujo de recuperación de contraseña. La crea POST /recoveryPassword/requestCode y la leen /verifyCode y /newPassword. No tiene relación con la sesión del cliente (authCookie) — es de un solo uso y expira sola.",
                 },
+                recoveryTokenAuth: {
+                    type: "apiKey",
+                    in: "header",
+                    name: "X-Recovery-Token",
+                    description:
+                    "El mismo token de recuperación de la cookie recoveryCookie, para la app mobile (en React Native las cookies no son confiables). Lo devuelven en el body ({ token }) POST /recoveryPassword/requestCode y /verifyCode, y la app lo manda de vuelta en este header a /verifyCode y /newPassword. Si llegan la cookie y el header, manda la cookie.",
+                },
                 verificationTokenAuth: {
                     type: "apiKey",
                     in: "cookie",
