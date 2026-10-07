@@ -2,64 +2,42 @@ import { useState } from 'react';
 import { api } from '../services/api.js';
 
 /**
- * Encapsula los tres pasos que exige Wompi para cobrar una tarjeta:
+ * Paga y crea el pedido en una sola llamada a POST /orders/checkout.
  *
- *   1. Pedir un token de acceso a la API (dura 1 hora).
- *   2. Cambiar el número de tarjeta por un token de un solo uso
- *      ("tokenización"). Wompi nunca cobra sobre el número real.
- *   3. Cobrar ese token.
+ * El navegador solo manda QUÉ se compra (productId + cantidad), a dónde va y
+ * la tarjeta. El servidor calcula el total desde la base de datos, reserva el
+ * stock, cobra con Wompi y, solo si el cobro se aprueba, crea el pedido. Las
+ * credenciales y el token de Wompi nunca llegan al navegador, y nada de lo
+ * que se mande sobre dinero tiene efecto.
  *
- * Las credenciales de Wompi viven en el backend, así que estos tres pasos
- * pasan por nuestro servidor y nunca se exponen en el navegador.
+ * Devuelve el pedido ya creado (con el total que se cobró de verdad). Si el
+ * pago se rechaza o no hay stock, lanza un Error con un mensaje para mostrar.
  */
 export const useWompi = () => {
   const [procesando, setProcesando] = useState(false);
 
-  const pagar = async ({ monto, nombreCliente, emailCliente, tarjeta }) => {
+  const pagar = async ({ products, address, phone, customerName, tarjeta }) => {
     setProcesando(true);
 
     try {
-      // Paso 1
-      const { access_token } = await api('/wompi/token', { method: 'POST' });
-
-      // Paso 2
-      const tokenizada = await api('/wompi/tokenizar', {
+      const { order } = await api('/orders/checkout', {
         method: 'POST',
         body: JSON.stringify({
-          token: access_token,
-          numeroTarjeta: tarjeta.numero.replace(/\s/g, ''),
-          cvv: tarjeta.cvv,
-          mesVencimiento: tarjeta.mes,
-          anioVencimiento: tarjeta.anio,
-          nombreTarjetaHabiente: tarjeta.titular,
-        }),
-      });
-
-      // Paso 3
-      const transaccion = await api('/wompi/paymentTest', {
-        method: 'POST',
-        body: JSON.stringify({
-          token: access_token,
-          formData: {
-            monto,
-            nombreCliente,
-            emailCliente,
-            tokenTarjeta: tokenizada.token,
+          products,
+          address,
+          phone,
+          customerName,
+          tarjeta: {
+            numero: tarjeta.numero.replace(/\s/g, ''),
+            cvv: tarjeta.cvv,
+            mes: tarjeta.mes,
+            anio: tarjeta.anio,
+            titular: tarjeta.titular,
           },
         }),
       });
 
-      if (!transaccion.esAprobada) {
-        throw new Error(transaccion.mensaje || 'La tarjeta fue rechazada');
-      }
-
-      return {
-        idTransaccion: transaccion.idTransaccion,
-        codigoAutorizacion: transaccion.codigoAutorizacion,
-        mensaje: transaccion.mensaje,
-        // "4573 6900 XXXX 0693" -> nos quedamos con los últimos 4 dígitos
-        cardLast4: tokenizada.tarjetaEnmascarada?.trim().slice(-4),
-      };
+      return order;
     } finally {
       setProcesando(false);
     }

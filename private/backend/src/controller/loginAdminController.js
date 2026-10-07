@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
 import employeeModel from "../models/employees.js";
 import { config } from "../../config.js";
+import { adminCookieOptions } from "../utils/cookieOptions.js";
 
 const loginAdminController = {};
 
@@ -26,8 +27,8 @@ loginAdminController.login = async (req, res) => {
     );
 
     res.cookie("adminAuthCookie", token, {
+      ...adminCookieOptions,
       maxAge: 8 * 60 * 60 * 1000,
-      httpOnly: false,
     });
 
     return res.status(200).json({

@@ -3,7 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CartContext = createContext(null);
 
-const CLAVE_STORAGE = 'applefly_carrito';
+// v2: antes los productos eran de Firestore y el carrito guardaba esos ids.
+// Ahora el catálogo es el de MongoDB, con otros ids, así que un carrito viejo
+// ya no sirve: se usa una clave nueva y la vieja se borra.
+const CLAVE_STORAGE = 'applefly_carrito_v2';
+const CLAVE_STORAGE_VIEJA = 'applefly_carrito';
 
 // Mismas constantes que public/frontend/src/context/CartContext.jsx, para
 // que el total que ve alguien en la app sea igual al que vería en la web.
@@ -25,6 +29,7 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     (async () => {
       try {
+        AsyncStorage.removeItem(CLAVE_STORAGE_VIEJA).catch(() => {});
         const guardado = await AsyncStorage.getItem(CLAVE_STORAGE);
         if (guardado) setItems(JSON.parse(guardado));
       } catch (e) {

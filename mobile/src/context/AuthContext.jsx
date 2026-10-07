@@ -10,7 +10,7 @@ import {
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { auth, db } from '../services/firebase';
-import { loginLegacy, perfilLegacy, registrarEnMongo } from '../services/legacyApi';
+import { loginLegacy, perfilLegacy, registrarEnMongo, vincularCuentaWebUnaVez } from '../services/legacyApi';
 import { registrarPushToken } from '../services/pushNotifications';
 
 const AuthContext = createContext(null);
@@ -92,6 +92,8 @@ export const AuthProvider = ({ children }) => {
   const login = async ({ email, password }) => {
     try {
       const credencial = await signInWithEmailAndPassword(auth, email, password);
+      // En segundo plano: no demora ni puede romper el login
+      vincularCuentaWebUnaVez(credencial.user, password);
       return credencial.user;
     } catch (errorFirebase) {
       // No podemos confiar en el código de error para saber si la cuenta
@@ -119,6 +121,8 @@ export const AuthProvider = ({ children }) => {
           migradoDesdeWeb: true,
         });
 
+        // Mongo acaba de validar esta contraseña: es la prueba para vincular
+        vincularCuentaWebUnaVez(credencial.user, password);
         return credencial.user;
       } catch (errorCrear) {
         if (errorCrear.code === 'auth/email-already-in-use') {

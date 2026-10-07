@@ -91,32 +91,21 @@ function CheckoutContenido() {
 
     setProcesando(true);
     try {
-      const idToken = await user.getIdToken();
-
       const datos = await cobrarConWompi({
-        idToken,
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          subtotal: +(item.price * item.quantity).toFixed(2),
-        })),
+        // Solo qué se compra: los precios y el total los calcula el backend
+        items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
         address: `${envio.direccion.trim()}, ${envio.ciudad.trim()}`,
         phone: envio.telefono.trim(),
-        subtotal,
-        shipping,
-        tax,
-        total,
         tarjeta: { ...tarjeta, titular: `${envio.nombre.trim()} ${envio.apellido.trim()}`.trim() },
         customerName: `${envio.nombre.trim()} ${envio.apellido.trim()}`.trim(),
       });
 
       vaciarCarrito();
 
+      // El total cobrado es el que calculó el backend, no el del carrito
       Alert.alert(
         '¡Compra confirmada!',
-        `Tu pago fue aprobado (tarjeta •••• ${datos.cardLast4 || '----'}). Pedido #${datos.orderId}.`,
+        `Tu pago de $${datos.total.toFixed(2)} fue aprobado (tarjeta •••• ${datos.cardLast4 || '----'}). Pedido #${datos.orderId}.`,
         [{ text: 'Listo', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (e) {
@@ -240,7 +229,7 @@ function CheckoutContenido() {
             <Text style={styles.resumenValor}>${tax.toFixed(2)}</Text>
           </View>
           <View style={[styles.resumenFila, styles.resumenTotalFila]}>
-            <Text style={styles.resumenTotalLabel}>Total</Text>
+            <Text style={styles.resumenTotalLabel}>Total estimado</Text>
             <Text style={styles.resumenTotalValor}>${total.toFixed(2)}</Text>
           </View>
         </View>

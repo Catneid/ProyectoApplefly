@@ -1,72 +1,54 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  where,
-} from 'firebase/firestore';
+import { apiFetch, ApiError } from './api';
+import { mapearCategoria, mapearProducto, mapearResena } from './adaptadores';
 
-import { db } from './firebase';
-
-const mapearDoc = (documento) => ({ id: documento.id, ...documento.data() });
-
-// Ver src/services/firestoreSchema.js para la forma exacta de cada campo.
+// Catálogo, categorías y reseñas salen de la API de public/backend (MongoDB):
+// lo que el admin cambia en el panel se ve acá sin pasos intermedios. Las
+// funciones mantienen los mismos nombres y la misma forma de datos que tenían
+// cuando leían de Firestore (ver adaptadores.js).
 
 export async function getProductos() {
-  const snap = await getDocs(query(collection(db, 'products'), orderBy('createdAt', 'desc')));
-  return snap.docs.map(mapearDoc);
+  const productos = await apiFetch('/products');
+  return productos.map(mapearProducto);
 }
 
-// Versión en tiempo real de getProductos: útil para un listado de catálogo
-// que se quiera actualizar solo si cambia el stock/precio de algo. callback
-// recibe el array de productos cada vez que hay un cambio. Devuelve la
-// función de unsubscribe — hay que llamarla al desmontar la pantalla.
-export function escucharProductos(callback) {
-  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => callback(snap.docs.map(mapearDoc)));
-}
-
+// null si el producto no existe
 export async function getProductoPorId(id) {
-  const snap = await getDoc(doc(db, 'products', id));
-  return snap.exists() ? mapearDoc(snap) : null;
+  try {
+    return mapearProducto(await apiFetch(`/products/${id}`));
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404)) return null;
+    throw error;
+  }
 }
 
 export async function getCategorias() {
-  const snap = await getDocs(collection(db, 'categories'));
-  return snap.docs.map(mapearDoc);
-}
-
-// No recalcula el rating/reviewsCount desnormalizado del producto — eso
-// queda pendiente para cuando se arme la pantalla de detalle de producto,
-// probablemente mejor como Cloud Function que escuche "reviews" en vez de
-// hacerlo a mano acá.
-export async function crearResena({ productId, userId, userName, rating, comment }) {
-  const referencia = await addDoc(collection(db, 'reviews'), {
-    productId,
-    userId,
-    userName,
-    rating,
-    comment,
-    createdAt: serverTimestamp(),
-  });
-
-  return referencia.id;
+  const categorias = await apiFetch('/categories');
+  return categorias.map(mapearCategoria);
 }
 
 export async function getResenasPorProducto(productId) {
-  // Ojo: where + orderBy en campos distintos necesita un índice compuesto.
-  // La primera vez que corra esta query, Firestore va a tirar un error con
-  // un link para crearlo con un click en la consola.
-  const q = query(
-    collection(db, 'reviews'),
-    where('productId', '==', productId),
-    orderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(mapearDoc);
+  const resenas = await apiFetch(`/reviews/producto/${productId}`);
+  return resenas.map(mapearResena);
+}
+
+// El backend decide si esta persona puede reseñar: solo quien compró el
+// producto, y una sola vez. Devuelve { comprado, puedeResenar, miReview }.
+export async function puedeResenar(productId) {
+  const datos = await apiFetch(`/reviews/puedo-resenar/${productId}`, { auth: true });
+  return {
+    comprado: datos.comprado,
+    puedeResenar: datos.puedeReseñar,
+    miReview: datos.miReview ? mapearResena(datos.miReview) : null,
+  };
+}
+
+// El nombre que se muestra lo pone el backend (el de la cuenta); acá no se
+// manda ni el usuario ni el nombre.
+export async function crearResena({ productId, rating, comment }) {
+  const { review } = await apiFetch('/reviews', {
+    method: 'POST',
+    auth: true,
+    body: { productId, rating, comment },
+  });
+  return mapearResena(review);
 }

@@ -94,7 +94,7 @@ const RecuperarPassword = () => {
                 <div style={{ fontSize: 48, marginBottom: 8 }}>📧</div>
                 <h1>Revisa tu correo</h1>
                 <p className="auth__subtitulo">
-                  Enviamos un código de 6 caracteres a <strong>{email}</strong>
+                  Si <strong>{email}</strong> está registrado, te enviamos un código de 6 dígitos
                 </p>
               </div>
 
@@ -103,14 +103,16 @@ const RecuperarPassword = () => {
                   <label className="auth__label" style={{ textAlign: 'center' }}>Código</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     maxLength={6}
                     autoFocus
                     className={`auth__input ${formCodigo.formState.errors.codigo ? 'auth__input--error' : ''}`}
-                    placeholder="abc123"
+                    placeholder="123456"
                     style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 700, letterSpacing: 8 }}
                     {...formCodigo.register('codigo', {
                       required: 'Escribe el código que te enviamos',
-                      minLength: { value: 6, message: 'El código tiene 6 caracteres' },
+                      pattern: { value: /^d{6}$/, message: 'El código tiene 6 dígitos' },
                     })}
                   />
                   {formCodigo.formState.errors.codigo && (

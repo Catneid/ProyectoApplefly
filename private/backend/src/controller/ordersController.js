@@ -1,4 +1,5 @@
 import orderModel from "../models/orders.js";
+import { notificarCambioEstado } from "../services/notificaciones.js";
 
 const ordersController = {};
 
@@ -43,12 +44,24 @@ ordersController.createOrder = async (req, res) => {
 ordersController.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+
+    if (!orderModel.schema.path("status").enumValues.includes(status)) {
+      return res.status(400).json({ message: "Estado inválido" });
+    }
+
+    const anterior = await orderModel.findById(req.params.id).select("status");
+    if (!anterior) return res.status(404).json({ message: "Pedido no encontrado" });
+
     const updated = await orderModel.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { returnDocument: "after" }
     );
-    if (!updated) return res.status(404).json({ message: "Pedido no encontrado" });
+
+    // Solo si el estado de verdad cambió. Sin await: el panel no tiene que
+    // esperar a Firebase ni a Expo, y notificarCambioEstado nunca tira.
+    if (anterior.status !== status) notificarCambioEstado(updated);
+
     return res.status(200).json({ message: "Estado actualizado", order: updated });
   } catch {
     return res.status(500).json({ message: "Error interno" });

@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// MongoDB (a través de la API de public/backend) es la única fuente de verdad
+// de productos, categorías, reseñas, pedidos y contacto. Firestore solo guarda
+// el perfil de la app y el push token, en users/{uid}.
+//
+// Los backends usan el Admin SDK, que se salta estas reglas a propósito (por
+// ejemplo, private/backend lee users/{uid}.pushToken para avisar de un cambio
+// de estado de un pedido). Estas reglas solo gobiernan lo que pueda hacer un
+// cliente con su sesión de Firebase.
+//
+// Para publicarlas (esto afecta al proyecto real, hacerlo a propósito):
+//   firebase deploy --only firestore:rules --project <id-del-proyecto>
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cada usuario solo puede leer y escribir su propio documento.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,48 +1,37 @@
-// Cliente del endpoint de pagos de public/backend. Nunca hablamos con
-// Wompi directo desde la app: el backend hace token + tokenizar + cobrar
-// (misma lógica que public/frontend/src/hooks/useWompi.js) y, solo si
-// aprueba, crea el pedido en Firestore. La app nunca escribe la colección
-// "orders" — eso es a propósito, ver firestore.rules.
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+import { apiFetch } from './api';
 
-// Devuelve { orderId, aprobada: true, mensaje, cardLast4 } si el pago fue
-// aprobado. Si Wompi rechaza la tarjeta (402) o falta algún dato (400),
-// tira un Error con el mensaje pensado para mostrarle al cliente.
-export async function cobrarConWompi({
-  idToken,
-  items,
-  address,
-  phone,
-  subtotal,
-  shipping,
-  tax,
-  total,
-  tarjeta,
-  customerName,
-}) {
-  if (!BASE_URL) {
-    throw new Error('La app no está configurada para procesar pagos (falta EXPO_PUBLIC_API_URL).');
-  }
+// Cliente del endpoint de pago de public/backend (POST /api/orders/checkout).
+// Nunca hablamos con Wompi directo desde la app: el backend calcula el total,
+// reserva el stock, cobra con Wompi y, solo si aprueba, crea el pedido en
+// MongoDB. La app nunca crea pedidos por su cuenta.
+//
+// Del dinero la app NO manda nada: solo qué compra (productId + cantidad).
+// Precios, envío, IVA y total los calcula el backend con los datos de la base,
+// y los devuelve en la respuesta. La sesión viaja como ID token de Firebase.
 
-  let respuesta;
-  try {
-    respuesta = await fetch(`${BASE_URL}/api/wompi/app/cobrar`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ items, address, phone, subtotal, shipping, tax, total, tarjeta, customerName }),
-    });
-  } catch (error) {
-    throw new Error('No se pudo conectar con el servidor de pagos. Revisá tu conexión e intentá de nuevo.');
-  }
+// items: [{ productId, quantity }]
+//
+// Devuelve { orderId, aprobada: true, mensaje, cardLast4, subtotal, shipping,
+// tax, total, products } si el pago fue aprobado; total es lo que de verdad
+// se cobró. Si Wompi rechaza la tarjeta (402), no hay stock (409) o falta
+// algún dato (400), tira un Error con el mensaje pensado para mostrarle al
+// cliente.
+export async function cobrarConWompi({ items, address, phone, tarjeta, customerName }) {
+  const { order } = await apiFetch('/orders/checkout', {
+    method: 'POST',
+    auth: true,
+    body: { products: items, address, phone, tarjeta, customerName },
+  });
 
-  const datos = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    throw new Error(datos?.mensaje || datos?.message || 'No se pudo procesar el pago.');
-  }
-
-  return datos;
+  return {
+    orderId: order._id,
+    aprobada: true,
+    mensaje: 'Pago aprobado',
+    cardLast4: order.payment?.cardLast4,
+    subtotal: order.subtotal,
+    shipping: order.shipping,
+    tax: order.tax,
+    total: order.total,
+    products: order.products,
+  };
 }

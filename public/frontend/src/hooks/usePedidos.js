@@ -39,13 +39,5 @@ export const usePedidos = () => {
     }
   }, []);
 
-  const crearPedido = async (datosPedido) => {
-    const { order } = await api('/orders', {
-      method: 'POST',
-      body: JSON.stringify(datosPedido),
-    });
-    return order;
-  };
-
-  return { pedidos, cargando, error, recargarPedidos, crearPedido };
+  return { pedidos, cargando, error, recargarPedidos };
 };

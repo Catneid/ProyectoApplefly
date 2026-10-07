@@ -35,6 +35,10 @@ export const useRecuperarPassword = () => {
       });
       setPaso(3);
       return r.message;
+    } catch (e) {
+      // Tras 5 intentos fallidos el backend invalida el código: hay que pedir uno nuevo
+      if (e.code === 'TOO_MANY_ATTEMPTS') setPaso(1);
+      throw e;
     } finally {
       setEnviando(false);
     }

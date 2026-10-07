@@ -3,7 +3,6 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, getDoc } from 'firebase/firestore';
 
 import EstadoCargando from '../../src/components/EstadoCargando';
 import EstadoError from '../../src/components/EstadoError';
@@ -12,8 +11,7 @@ import FormularioResena from '../../src/components/FormularioResena';
 import PrimaryButton from '../../src/components/PrimaryButton';
 import { useAuth } from '../../src/context/AuthContext';
 import { useCart } from '../../src/context/CartContext';
-import { db } from '../../src/services/firebase';
-import { crearResena, getProductoPorId, getResenasPorProducto } from '../../src/services/products';
+import { crearResena, getProductoPorId, getResenasPorProducto, puedeResenar } from '../../src/services/products';
 import { colors } from '../../src/theme/colors';
 import { fonts, sizes } from '../../src/theme/typography';
 
@@ -49,6 +47,10 @@ export default function ProductoDetalle() {
   const [cargandoResenas, setCargandoResenas] = useState(true);
   const [errorResenas, setErrorResenas] = useState(false);
 
+  // Solo quien compró el producto puede reseñarlo (una vez). Lo decide el
+  // backend; null mientras carga o si no hay sesión.
+  const [permisoResena, setPermisoResena] = useState(null);
+
   const cargarProducto = async () => {
     try {
       setError(false);
@@ -75,10 +77,27 @@ export default function ProductoDetalle() {
     }
   };
 
+  const cargarPermisoResena = async () => {
+    if (!user) {
+      setPermisoResena(null);
+      return;
+    }
+    try {
+      setPermisoResena(await puedeResenar(id));
+    } catch (e) {
+      // Sin permiso (p. ej. correo sin verificar): no mostramos el formulario
+      setPermisoResena({ comprado: false, puedeResenar: false, miReview: null, motivo: e.message });
+    }
+  };
+
   useEffect(() => {
     cargarProducto();
     cargarResenas();
   }, [id]);
+
+  useEffect(() => {
+    cargarPermisoResena();
+  }, [id, user]);
 
   const agregarAlCarrito = () => {
     agregarProductoAlCarrito(producto, 1);
@@ -86,21 +105,15 @@ export default function ProductoDetalle() {
   };
 
   const manejarNuevaResena = async ({ rating, comment }) => {
-    // El nombre para mostrar vive en Firestore (users/{uid}), no en el user
-    // de Firebase Auth — lo buscamos recién acá, solo cuando hace falta.
-    let userName = user.email;
-    try {
-      const perfilSnap = await getDoc(doc(db, 'users', user.uid));
-      if (perfilSnap.exists()) {
-        const perfil = perfilSnap.data();
-        userName = [perfil.name, perfil.lastName].filter(Boolean).join(' ') || user.email;
-      }
-    } catch {
-      // Si falla, seguimos con el email como respaldo — no bloqueamos la reseña por esto.
-    }
-
-    await crearResena({ productId: id, userId: user.uid, userName, rating, comment });
-    await cargarResenas();
+    await crearResena({ productId: id, rating, comment });
+    // Se actualizan la lista, el permiso (ya no puede reseñar de nuevo) y el
+    // producto (cambió su promedio de estrellas)
+    await Promise.all([
+      cargarResenas(),
+      cargarPermisoResena(),
+      // Recarga silenciosa: sin el spinner de pantalla completa de cargarProducto
+      getProductoPorId(id).then((actualizado) => actualizado && setProducto(actualizado)).catch(() => {}),
+    ]);
   };
 
   if (cargando) {
@@ -211,10 +224,16 @@ export default function ProductoDetalle() {
             </View>
           )}
 
-          {user ? (
-            <FormularioResena onEnviar={manejarNuevaResena} />
-          ) : (
+          {!user ? (
             <Text style={styles.iniciaSesion}>Iniciá sesión para dejar tu reseña.</Text>
+          ) : !permisoResena ? null : permisoResena.puedeResenar ? (
+            <FormularioResena onEnviar={manejarNuevaResena} />
+          ) : permisoResena.miReview ? (
+            <Text style={styles.iniciaSesion}>Ya dejaste tu reseña en este producto. ¡Gracias!</Text>
+          ) : (
+            <Text style={styles.iniciaSesion}>
+              {permisoResena.motivo || 'Solo quienes compraron este producto pueden dejar una reseña.'}
+            </Text>
           )}
         </View>
       </ScrollView>

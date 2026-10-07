@@ -3,6 +3,7 @@ import jsonwebtoken from "jsonwebtoken";
 import fetch from "node-fetch";
 import customerModel from "../models/customers.js";
 import { config } from "../../config.js";
+import { authCookieOptions } from "../utils/cookieOptions.js";
 
 const loginCustomerController = {};
 
@@ -83,7 +84,7 @@ loginCustomerController.login = async (req, res) => {
       { expiresIn: "30d" }
     );
 
-    res.cookie("authCookie", token, { maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie("authCookie", token, { ...authCookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     return res.status(200).json({
       message: "Login exitoso",

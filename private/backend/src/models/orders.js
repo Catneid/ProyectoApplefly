@@ -25,6 +25,15 @@ const orderSchema = new Schema(
     },
     address: { type: String },
     phone: { type: String },
+
+    // Pago hecho con Wompi (lo escribe public/backend al cobrar). Sin esto
+    // en el schema, el panel no lo recibiría.
+    payment: {
+      method: { type: String },
+      transactionId: { type: String },
+      status: { type: String },
+      cardLast4: { type: String },
+    },
   },
   { timestamps: true }
 );

@@ -12,7 +12,7 @@ const router = express.Router();
  *     summary: Registra un cliente nuevo y envía un código de verificación por correo
  *     description: >
  *       No crea la cuenta todavía. Guarda los datos temporalmente en una cookie
- *       firmada (`verificationToken`, 15 min) y envía un código de 6 caracteres
+ *       firmada (`verificationToken`, 15 min) y envía un código de 6 dígitos
  *       al correo. La cuenta se crea recién en /verifyCodeEmail.
  *     requestBody:
  *       required: true
@@ -69,12 +69,20 @@ router.route("/").post(registerCustomerController.register);
  *             properties:
  *               verificationCodeRequest:
  *                 type: string
- *                 example: a1b2c3
+ *                 example: "123456"
  *     responses:
  *       200:
  *         description: Cuenta verificada exitosamente
  *       400:
- *         description: Código incorrecto o sesión expirada
+ *         description: Código incorrecto (el mensaje indica los intentos restantes) o sesión expirada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       429:
+ *         description: >
+ *           5 intentos fallidos. El código queda invalidado (se borra la cookie,
+ *           `code: TOO_MANY_ATTEMPTS`) y hay que registrarse de nuevo.
  *         content:
  *           application/json:
  *             schema:
@@ -143,6 +151,48 @@ router.route("/verifyCodeEmail").post(registerCustomerController.verifyCode);
  *         description: Error interno del servidor
  */
 router.route("/mobile").post(verifyFirebaseToken, registerCustomerController.registerFromMobile);
+
+/**
+ * @swagger
+ * /registerCustomers/link:
+ *   post:
+ *     tags: [Auth - Clientes]
+ *     summary: Vincula una cuenta de la web con el usuario de Firebase de la app
+ *     description: >
+ *       Para clientes que se registraron en la web y entran por primera vez a
+ *       la app: su usuario de Firebase todavía no tiene el correo verificado,
+ *       así que el backend no los vincula solo por correo. La prueba de que
+ *       son la misma persona es la contraseña de la cuenta de la web. Usa los
+ *       mismos intentos fallidos y bloqueo de 15 minutos que el login.
+ *       Es idempotente: si ya estaban vinculados, responde 200.
+ *     security:
+ *       - firebaseIdTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Cuenta vinculada
+ *       400:
+ *         description: Falta la contraseña
+ *       401:
+ *         description: Token de Firebase inválido, o contraseña incorrecta
+ *       403:
+ *         description: Cuenta bloqueada temporalmente por intentos fallidos
+ *       404:
+ *         description: No hay una cuenta de la web con ese correo
+ *       409:
+ *         description: La cuenta ya está vinculada a otro usuario de la app
+ */
+router.route("/link").post(verifyFirebaseToken, registerCustomerController.linkFirebaseAccount);
 
 
 export default router;

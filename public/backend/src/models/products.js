@@ -7,7 +7,7 @@ const productSchema = new Schema(
     price: { type: Number, required: true },
     originalPrice: { type: Number },
     discount: { type: Number, default: 0 },
-    stock: { type: Number, default: 0 },
+    stock: { type: Number, default: 0, min: 0 },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Categories" },
     image: { type: String },
     public_id: { type: String },

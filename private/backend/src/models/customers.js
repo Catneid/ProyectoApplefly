@@ -12,6 +12,9 @@ const customerSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     loginAttemps: { type: Number, default: 0 },
     timeOut: { type: Date },
+    // uid de Firebase Auth si el cliente usa la app (lo vincula public/backend).
+    // Sirve para encontrar su push token en Firestore.
+    firebaseUid: { type: String },
   },
   { timestamps: true, strict: false }
 );

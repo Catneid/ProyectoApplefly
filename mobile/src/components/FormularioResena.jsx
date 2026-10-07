@@ -8,7 +8,7 @@ import { colors } from '../theme/colors';
 import { fonts, sizes } from '../theme/typography';
 
 // onEnviar recibe { rating, comment } y hace el crearResena real — así este
-// componente no sabe nada de Firestore, solo de la UI del formulario.
+// componente no sabe nada de la API, solo de la UI del formulario.
 export default function FormularioResena({ onEnviar }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -27,8 +27,9 @@ export default function FormularioResena({ onEnviar }) {
       await onEnviar({ rating, comment: comment.trim() });
       setRating(0);
       setComment('');
-    } catch {
-      setError('No pudimos guardar tu reseña. Intentá de nuevo.');
+    } catch (e) {
+      // El backend explica el motivo (p. ej. "Ya dejaste una reseña")
+      setError(e?.message || 'No pudimos guardar tu reseña. Intentá de nuevo.');
     } finally {
       setEnviando(false);
     }

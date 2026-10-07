@@ -22,7 +22,7 @@ const options = {
                     in: "cookie",
                     name: "authCookie",
                     description:
-                    "Cookie httpOnly que se setea al hacer login en /loginCustomers. Contiene un JWT con { id, userType: 'customer', name, email }.",
+                    "Cookie httpOnly que se setea al hacer login en /loginCustomers. Contiene un JWT con { id, userType: 'customer', name, email }. Las rutas de cliente (pedidos, reseñas, perfil) aceptan también un ID token de Firebase como Bearer (firebaseIdTokenAuth): el backend lo traduce al mismo cliente de Mongo.",
                 },
                 recoveryCookieAuth: {
                     type: "apiKey",
@@ -42,7 +42,7 @@ const options = {
                     type: "http",
                     scheme: "bearer",
                     description:
-                    "ID token de Firebase Auth (header Authorization: Bearer <token>) de la app mobile. Lo verifica verifyFirebaseToken con firebase-admin. Nada que ver con authCookie: esta es la sesión de Firebase, no la de la web.",
+                    "ID token de Firebase Auth (header Authorization: Bearer <token>) de la app mobile. Lo verifica firebase-admin: verifyToken lo traduce al cliente de Mongo (rutas de cliente) y verifyFirebaseToken lo usa en el alta y la vinculación de cuentas. Es la sesión de la app; la web usa authCookie.",
                 },
             },
         },

@@ -7,8 +7,9 @@ import { db } from './firebase';
 
 // Sin esto, expo-notifications no muestra nada mientras la app está
 // abierta (su comportamiento por defecto es tragarse la notificación en
-// foreground). El push de "pago confirmado" (Fase 8) tiene que verse
-// aunque el cliente esté con la app abierta en ese momento.
+// foreground). El aviso de cambio de estado del pedido (lo manda
+// private/backend cuando el panel lo actualiza) tiene que verse aunque el
+// cliente esté con la app abierta en ese momento.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,

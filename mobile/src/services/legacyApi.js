@@ -7,6 +7,10 @@
 // llegar de verdad (la IP de tu compu en la red WiFi, o la URL pública si
 // ya está desplegado) — "localhost" no sirve porque desde el celular
 // "localhost" es el celular mismo, no tu PC.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { apiFetch } from './api';
+
 const BASE_URL = process.env.EXPO_PUBLIC_LEGACY_API_URL;
 
 // Login contra /api/loginCustomers (Mongo). Devuelve { id, name, email } si
@@ -106,5 +110,35 @@ export async function perfilLegacy() {
     return await respuesta.json();
   } catch {
     return null;
+  }
+}
+
+// Vincula el usuario de Firebase con la cuenta de la web (Mongo) usando la
+// contraseña como prueba de que son la misma persona. Hace falta para quien
+// se registró en la web: su usuario de Firebase se crea con el correo SIN
+// verificar y el backend no vincula por correo sin verificar (cualquiera
+// podría crear en Firebase el correo de otra persona).
+//
+// Se intenta UNA sola vez por dispositivo y usuario: si la contraseña de
+// Firebase y la de la web ya no coinciden, repetirlo en cada login contaría
+// intentos fallidos y bloquearía la cuenta de la web. Nunca tira: es
+// best-effort y no puede romper el login. Si el correo ya está verificado no
+// hace falta, el backend vincula solo.
+export async function vincularCuentaWebUnaVez(usuarioFirebase, password) {
+  if (usuarioFirebase.emailVerified) return;
+
+  const clave = `cuenta_web_vinculada_${usuarioFirebase.uid}`;
+  try {
+    if (await AsyncStorage.getItem(clave)) return;
+    await AsyncStorage.setItem(clave, '1');
+
+    await apiFetch('/registerCustomers/link', {
+      method: 'POST',
+      auth: true,
+      body: { password },
+    });
+  } catch (error) {
+    // 404 = no hay cuenta de la web con ese correo (usuario solo de la app): normal
+    console.warn('[legacyApi] No se vinculó con la cuenta de la web:', error.message);
   }
 }

@@ -1,103 +1,41 @@
 import orderModel from "../models/orders.js";
-import productModel from "../models/products.js";
+import { StockInsuficienteError } from "../services/stock.js";
+import { CheckoutError, procesarCheckout } from "../services/checkout.js";
 
 const ordersController = {};
 
-const ENVIO = 15;
-const ENVIO_GRATIS_DESDE = 500;
-const IVA = 0.13;
-
-
-const calcularPedido = async (productosPedidos) => {
-  let subtotal = 0;
-  const productos = [];
-
-  for (const item of productosPedidos) {
-    const producto = await productModel.findById(item.productId);
-
-    if (!producto) {
-      throw new Error(`El producto ya no está disponible`);
-    }
-
-    const cantidad = parseInt(item.quantity);
-    if (!cantidad || cantidad < 1) {
-      throw new Error(`Cantidad inválida para ${producto.name}`);
-    }
-
-    if (producto.stock < cantidad) {
-      throw new Error(`Solo quedan ${producto.stock} unidades de ${producto.name}`);
-    }
-
-    const subtotalItem = producto.price * cantidad;
-    subtotal += subtotalItem;
-
-    productos.push({
-      productId: producto._id,
-      name: producto.name,
-      price: producto.price,
-      quantity: cantidad,
-      subtotal: subtotalItem,
-    });
-  }
-
-  const shipping = subtotal >= ENVIO_GRATIS_DESDE ? 0 : ENVIO;
-  const tax = subtotal * IVA;
-  const total = subtotal + shipping + tax;
-
-  return {
-    productos,
-    subtotal: Math.round(subtotal * 100) / 100,
-    shipping,
-    tax: Math.round(tax * 100) / 100,
-    total: Math.round(total * 100) / 100,
-  };
-};
-
-
-ordersController.createOrder = async (req, res) => {
+// Único camino para crear un pedido: valida, reserva stock, cobra con Wompi y
+// guarda el pedido (ver services/checkout.js). Del body solo se usa QUÉ se
+// compra, a dónde va y la tarjeta; el dinero lo calcula el servidor.
+ordersController.checkout = async (req, res) => {
   try {
-    const { products, address, phone, payment } = req.body;
+    const { products, address, phone, tarjeta, customerName } = req.body;
 
-    if (!Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ message: "El carrito está vacío" });
-    }
-
-    if (!address || !phone) {
-      return res.status(400).json({ message: "Faltan los datos de envío" });
-    }
-
-    const calculado = await calcularPedido(products);
-
-    const newOrder = new orderModel({
-
-      customerId: req.user.id,
-      customerName: req.user.name,
-      customerEmail: req.user.email,
-      products: calculado.productos,
-      subtotal: calculado.subtotal,
-      shipping: calculado.shipping,
-      tax: calculado.tax,
-      total: calculado.total,
+    const order = await procesarCheckout({
+      user: req.user,
+      customerName,
+      products,
       address,
       phone,
-      payment,
-      status: "pendiente",
+      tarjeta,
     });
 
-    await newOrder.save();
-
-
-    for (const item of calculado.productos) {
-      await productModel.findByIdAndUpdate(item.productId, {
-        $inc: { stock: -item.quantity },
+    return res.status(201).json({ message: "Pedido creado", order });
+  } catch (error) {
+    if (error instanceof StockInsuficienteError) {
+      return res.status(409).json({
+        message: `${error.message} (disponibles: ${error.disponible})`,
+        product: error.productName,
+        available: error.disponible,
       });
     }
 
-    return res.status(201).json({ message: "Pedido creado", order: newOrder });
-  } catch (error) {
-    console.log(error);
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message, ...error.extra });
+    }
 
-    return res.status(400).json({ message: error.message || "No se pudo crear el pedido" });
+    console.log(error);
+    return res.status(500).json({ message: "No se pudo procesar el pedido" });
   }
 };
 

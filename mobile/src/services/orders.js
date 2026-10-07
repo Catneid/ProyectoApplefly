@@ -1,50 +1,59 @@
-import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { apiFetch } from './api';
+import { mapearPedido } from './adaptadores';
 
-import { db } from './firebase';
-
-const mapearDoc = (documento) => ({ id: documento.id, ...documento.data() });
-
-// Ver src/services/firestoreSchema.js para la forma exacta de cada campo.
+// Ver src/services/adaptadores.js para la forma de los datos.
 //
-// A propósito NO hay un crearOrden() acá: la app nunca escribe la colección
-// "orders" directo en Firestore. El pedido se crea en public/backend
-// (src/controller/wompiAppController.js), con el Admin SDK, y solo después
-// de que Wompi aprueba el cobro — ver src/services/paymentsApi.js y
-// app/checkout.jsx. firestore.rules (en la raíz del repo) reflejan esto:
-// un cliente autenticado puede leer sus propios pedidos, pero no crearlos
-// ni modificarlos.
+// A propósito NO hay un crearOrden() acá: un pedido solo se crea pagando
+// (POST /api/orders/checkout), que calcula el total en el servidor, cobra con
+// Wompi y recién entonces guarda el pedido — ver src/services/paymentsApi.js
+// y app/checkout.jsx.
 
-export async function getMisOrdenes(customerId) {
-  const q = query(
-    collection(db, 'orders'),
-    where('customerId', '==', customerId),
-    orderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(mapearDoc);
+export async function getMisOrdenes() {
+  const ordenes = await apiFetch('/orders/mis-pedidos', { auth: true });
+  return ordenes.map(mapearPedido);
 }
 
-// Versión en tiempo real: pensada para una pantalla de "mis pedidos" que
-// quiera reflejar solo el cambio de estado (pendiente -> enviado ->
-// entregado) sin que el usuario tenga que refrescar. Devuelve el
-// unsubscribe — hay que llamarlo al desmontar la pantalla.
+const INTERVALO_MS = 20000;
+
+// Mantiene la lista al día mientras la pantalla está abierta: la carga al
+// empezar y la repite cada 20 segundos, así un cambio de estado hecho en el
+// panel (procesando → enviado) se refleja solo. Devuelve el unsubscribe — hay
+// que llamarlo al desmontar la pantalla.
 //
-// onError es opcional pero importante: sin él, un permission-denied (por
-// ejemplo, si todavía no existe el índice compuesto) o un corte de red
-// deja el listener muerto en silencio, y la pantalla se queda con el
-// spinner de carga para siempre.
-export function escucharMisOrdenes(customerId, callback, onError) {
-  const q = query(
-    collection(db, 'orders'),
-    where('customerId', '==', customerId),
-    orderBy('createdAt', 'desc')
-  );
-  return onSnapshot(
-    q,
-    (snap) => callback(snap.docs.map(mapearDoc)),
-    (error) => {
-      console.warn('[orders] escucharMisOrdenes falló:', error.message);
-      onError?.(error);
+// onError solo se llama si falla la PRIMERA carga (para mostrar "reintentar");
+// un fallo de red en una repetición se ignora y se vuelve a intentar luego,
+// con la lista anterior todavía en pantalla.
+//
+// El primer parámetro se conserva por compatibilidad: ya no hace falta, el
+// backend toma el cliente de la sesión.
+export function escucharMisOrdenes(_customerId, callback, onError) {
+  let activo = true;
+  let primera = true;
+  let enCurso = false;
+
+  const cargar = async () => {
+    if (enCurso) return;
+    enCurso = true;
+    try {
+      const ordenes = await getMisOrdenes();
+      if (activo) callback(ordenes);
+      primera = false;
+    } catch (error) {
+      if (primera) {
+        console.warn('[orders] escucharMisOrdenes falló:', error.message);
+        if (activo) onError?.(error);
+        primera = false;
+      }
+    } finally {
+      enCurso = false;
     }
-  );
+  };
+
+  cargar();
+  const timer = setInterval(cargar, INTERVALO_MS);
+
+  return () => {
+    activo = false;
+    clearInterval(timer);
+  };
 }

@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useProductos } from '../context/ProductosContext.jsx';
-import { usePedidos } from '../hooks/usePedidos.js';
 import { useWompi } from '../hooks/useWompi.js';
 import Boton from '../components/Boton.jsx';
 import './Checkout.css';
@@ -26,7 +25,6 @@ const Checkout = () => {
   const { items, subtotal, shipping, tax, total, clearCart } = useCart();
   const { user } = useAuth();
   const { refreshProductos } = useProductos();
-  const { crearPedido } = usePedidos();
   const { pagar, procesando } = useWompi();
   const navigate = useNavigate();
 
@@ -62,32 +60,24 @@ const Checkout = () => {
     setPaso(3);
   };
 
-  // El paso final: se cobra la tarjeta y, SOLO si el cobro fue aprobado,
-  // se guarda el pedido. Si el pago falla no se crea ningún pedido, y si
-  // el pedido falla el usuario se entera (no como antes, que decía
-  // "compra exitosa" pasara lo que pasara).
+  // El paso final: una sola llamada al servidor, que calcula el total, cobra
+  // la tarjeta y, SOLO si el cobro fue aprobado, crea el pedido. Si el pago
+  // falla (o no hay stock) no se crea ningún pedido y el usuario ve el motivo.
+  // Lo que se cobra es el total del servidor; el que se ve en pantalla antes
+  // de pagar es solo un estimado.
   const confirmarCompra = async () => {
     try {
-      const cobro = await pagar({
-        monto: total,
-        nombreCliente: `${envio.nombre} ${envio.apellido}`,
-        emailCliente: user.email,
-        tarjeta: { ...tarjeta, titular: `${envio.nombre} ${envio.apellido}` },
-      });
+      const nombre = `${envio.nombre} ${envio.apellido}`;
 
-      const pedido = await crearPedido({
+      const pedido = await pagar({
         products: items.map((item) => ({
           productId: item._id || item.id,
           quantity: item.quantity,
         })),
         address: `${envio.direccion}, ${envio.ciudad}`,
         phone: envio.telefono,
-        payment: {
-          method: 'wompi',
-          transactionId: cobro.idTransaccion,
-          status: 'aprobado',
-          cardLast4: cobro.cardLast4,
-        },
+        customerName: nombre,
+        tarjeta: { ...tarjeta, titular: nombre },
       });
 
       setPedidoListo(pedido);

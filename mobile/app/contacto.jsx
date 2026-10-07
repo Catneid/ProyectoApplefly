@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import PrimaryButton from '../src/components/PrimaryButton';
 import TextField from '../src/components/TextField';
 import { useAuth } from '../src/context/AuthContext';
-import { db } from '../src/services/firebase';
+import { apiFetch } from '../src/services/api';
 import { colors } from '../src/theme/colors';
 import { fonts, sizes } from '../src/theme/typography';
 
@@ -44,17 +43,17 @@ export default function Contacto() {
 
     setEnviando(true);
     try {
-      // Colección propia de mobile: no es la misma "Contacto" (simulada,
-      // sin backend) que tiene la web hoy.
-      await addDoc(collection(db, 'contactMessages'), {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        message: form.message.trim(),
-        createdAt: serverTimestamp(),
+      await apiFetch('/contact', {
+        method: 'POST',
+        body: {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          message: form.message.trim(),
+        },
       });
       setEnviado(true);
     } catch (e) {
-      Alert.alert('No se pudo enviar tu mensaje', 'Intentá de nuevo en unos minutos.');
+      Alert.alert('No se pudo enviar tu mensaje', e.message || 'Intentá de nuevo en unos minutos.');
     } finally {
       setEnviando(false);
     }

@@ -54,7 +54,9 @@ const Dashboard = () => {
             <li><a href="/productos"><IconPlus size={14} /> Agregar producto</a></li>
             <li><a href="/categorias"><IconTag size={14} /> Gestionar categorías</a></li>
             <li><a href="/pedidos"><IconCart size={14} /> Ver pedidos</a></li>
-            <li><a href="/empleados"><IconUsers size={14} /> Registrar empleado</a></li>
+            {admin?.role === "admin" && (
+              <li><a href="/empleados"><IconUsers size={14} /> Registrar empleado</a></li>
+            )}
           </ul>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import productModel from "../models/products.js";
 import reviewModel from "../models/reviews.js";
 
@@ -42,6 +43,11 @@ productsController.getProducts = async (req, res) => {
 
 productsController.getProductById = async (req, res) => {
   try {
+    // Un id mal formado es "no existe", no un error del servidor
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
     const product = await productModel.findById(req.params.id).populate("category", "name");
     if (!product) return res.status(404).json({ message: "Producto no encontrado" });
 

@@ -88,6 +88,64 @@
  *        reviews:
  *           type: integer
  *           description: Cantidad de reseñas (calculado, no se guarda en BD)
+ *     Order:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         customerId:
+ *           type: string
+ *         customerName:
+ *           type: string
+ *         customerEmail:
+ *           type: string
+ *         products:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               productId:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               quantity:
+ *                 type: integer
+ *               subtotal:
+ *                 type: number
+ *         subtotal:
+ *           type: number
+ *         shipping:
+ *           type: number
+ *         tax:
+ *           type: number
+ *         total:
+ *           type: number
+ *           description: Monto que se cobró (calculado por el servidor)
+ *         status:
+ *           type: string
+ *           enum: [pendiente, procesando, enviado, entregado, cancelado]
+ *         address:
+ *           type: string
+ *         phone:
+ *           type: string
+ *         payment:
+ *           type: object
+ *           properties:
+ *             method:
+ *               type: string
+ *               example: wompi
+ *             transactionId:
+ *               type: string
+ *             status:
+ *               type: string
+ *               example: aprobado
+ *             cardLast4:
+ *               type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
  *     ErrorResponse:
  *       type: object
  *       properties:

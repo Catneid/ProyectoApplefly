@@ -13,7 +13,7 @@ import { escucharMisOrdenes } from '../../src/services/orders';
 import { colors } from '../../src/theme/colors';
 import { fonts, sizes } from '../../src/theme/typography';
 
-// Mismos 5 estados que firestoreSchema.js. Los colores están pensados para
+// Los 5 estados que maneja el panel de administración. Los colores están pensados para
 // leerse de un vistazo: gris = todavía no se movió, azul = en curso, verde
 // = terminó bien, rojo = terminó mal.
 const ESTADOS = {
@@ -33,9 +33,11 @@ function EstadoChip({ status }) {
   );
 }
 
-function formatearFecha(timestamp) {
-  if (!timestamp?.toDate) return '';
-  return timestamp.toDate().toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' });
+function formatearFecha(fecha) {
+  if (!fecha) return '';
+  const date = new Date(fecha);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function FilaDato({ label, valor }) {
@@ -109,7 +111,7 @@ function PedidosContenido() {
   const [error, setError] = useState(false);
   const [seleccionado, setSeleccionado] = useState(null);
   // Cambiar esto vuelve a montar el efecto de abajo, lo que arma de nuevo
-  // el listener de Firestore — es el "Reintentar" del estado de error.
+  // la carga periódica — es el "Reintentar" del estado de error.
   const [intento, setIntento] = useState(0);
 
   useEffect(() => {
@@ -117,7 +119,7 @@ function PedidosContenido() {
     setCargando(true);
     setError(false);
 
-    // onSnapshot en vez de una carga única: si el backend actualiza el
+    // Carga periódica en vez de una carga única: si el panel actualiza el
     // status de un pedido (por ejemplo, de "procesando" a "enviado"), la
     // lista se refresca sola, sin que el cliente tenga que hacer nada.
     const unsubscribe = escucharMisOrdenes(

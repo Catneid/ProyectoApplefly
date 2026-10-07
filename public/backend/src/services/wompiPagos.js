@@ -1,18 +1,12 @@
 import fetch from "node-fetch";
 import { config } from "../../config.js";
 
-// Los mismos tres pasos que ya orquestaba public/frontend/src/hooks/useWompi.js
-// del lado del navegador, movidos acá para que la app mobile pueda pedir
-// "cobrame esta tarjeta" en una sola llamada al backend, sin conocer las
-// credenciales de Wompi ni encadenar los tres pasos ella misma.
-//
-// wompiController.js (rutas que ya usa la web) reutiliza estas mismas
-// funciones de más bajo nivel, así la lógica no queda duplicada en dos
-// lados y el comportamiento de esas rutas no cambia.
+// Cliente de la API de Wompi. Todo corre en el servidor: ni la web ni la app
+// ven nunca las credenciales ni el access_token intermedio. Lo usa el
+// checkout (services/checkout.js).
 
 // Error de un !response.ok contra la API de Wompi. Se distingue de un error
-// cualquiera para que cada controlador pueda decidir, como ya hacía antes,
-// con qué status code y forma de body responderle a SU cliente.
+// cualquiera para no reenviarle al cliente el texto crudo de Wompi.
 export class WompiHttpError extends Error {
   constructor(textoWompi) {
     super(textoWompi);
@@ -89,26 +83,7 @@ export async function cobrarTokenWompi({ token, formData }) {
   return response.json(); // { esAprobada, idTransaccion, codigoAutorizacion, mensaje }
 }
 
-export async function cobrarToken3DSWompi({ token, formData }) {
-  const response = await fetch("https://api.wompi.sv/TransaccionCompra/3Ds", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(formData),
-  });
-
-  if (!response.ok) {
-    throw new WompiHttpError(await response.text());
-  }
-
-  return response.json();
-}
-
-// Encadena token -> tokenizar -> cobrar, igual que useWompi.js. Corre
-// entero en el servidor: la app mobile nunca ve las credenciales de Wompi
-// ni el access_token intermedio. Si el cobro es rechazado, tira (no
+// Encadena token -> tokenizar -> cobrar. Si el cobro es rechazado, tira (no
 // devuelve "aprobada: false") para que el llamador nunca tenga que acordarse
 // de chequear un campo — un cobro que no aprobó es, para todo efecto
 // práctico, un error.

@@ -12,7 +12,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: <IconDashboard /> },
   { to: "/productos", label: "Productos", icon: <IconBox /> },
   { to: "/categorias", label: "Categorías", icon: <IconTag /> },
-  { to: "/empleados", label: "Empleados", icon: <IconUsers /> },
+  { to: "/empleados", label: "Empleados", icon: <IconUsers />, adminOnly: true },
   { to: "/clientes", label: "Clientes", icon: <IconUser /> },
   { to: "/pedidos", label: "Pedidos", icon: <IconCart /> },
 ];
@@ -20,6 +20,7 @@ const navItems = [
 const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { admin, logout } = useAdminAuth();
   const navigate = useNavigate();
+  const visibleItems = navItems.filter((item) => !item.adminOnly || admin?.role === "admin");
 
   const handleLogout = async () => {
     await logout();
@@ -53,7 +54,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
       </div>
 
       <nav className="sidebar__nav">
-        {navItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

@@ -12,6 +12,10 @@ const customerSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     loginAttemps: { type: Number, default: 0 },
     timeOut: { type: Date },
+    // uid de Firebase Auth, para clientes que usan la app mobile. Único pero
+    // "sparse": los clientes que solo usan la web no lo tienen. Nunca se debe
+    // guardar null/"" (el índice los trataría como un valor repetido).
+    firebaseUid: { type: String, unique: true, sparse: true },
   },
   { timestamps: true, strict: false }
 );

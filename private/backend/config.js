@@ -12,6 +12,13 @@ export const config = {
     user_email: process.env.USER_EMAIL,
     user_password: process.env.USER_PASSWORD,
   },
+  // Solo lo usa scripts/seedAdmin.js
+  admin: {
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD,
+    name: process.env.ADMIN_NAME || "Admin",
+    lastName: process.env.ADMIN_LAST_NAME || "Applefly",
+  },
   cloudinary: {
     cloudinary_name: process.env.CLOUDINARY_CLOUD_NAME,
     cloudinary_api_key: process.env.CLOUDINARY_API_KEY,

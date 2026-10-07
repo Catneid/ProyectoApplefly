@@ -12,6 +12,7 @@ import RutaProtegida from '../../src/components/RutaProtegida';
 import TextField from '../../src/components/TextField';
 import { useAuth } from '../../src/context/AuthContext';
 import { db } from '../../src/services/firebase';
+import { apiFetch } from '../../src/services/api';
 import { subirFotoPerfil } from '../../src/services/profileApi';
 import { colors } from '../../src/theme/colors';
 import { fonts, sizes } from '../../src/theme/typography';
@@ -102,6 +103,24 @@ function PerfilContenido() {
         },
         { merge: true }
       );
+      // MongoDB es la fuente de verdad del cliente (panel de administración,
+      // reseñas, pedidos): se refleja también ahí. Best-effort: el perfil de la
+      // app ya quedó guardado y esto no debe hacerlo fallar.
+      try {
+        await apiFetch('/profile', {
+          method: 'PUT',
+          auth: true,
+          body: {
+            name: form.name.trim(),
+            lastName: form.lastName.trim(),
+            phone: form.phone.trim(),
+            address: form.address.trim(),
+            birthdate,
+          },
+        });
+      } catch (e) {
+        console.warn('[perfil] No se pudo sincronizar el perfil con el servidor:', e.message);
+      }
       Alert.alert('Listo', 'Tu perfil se actualizó.');
     } catch (e) {
       Alert.alert('No se pudo guardar', e.message);

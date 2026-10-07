@@ -9,7 +9,10 @@ export const api = async (ruta, opciones = {}) => {
   const datos = await respuesta.json().catch(() => ({}));
 
   if (!respuesta.ok) {
-    throw new Error(datos.message || 'No se pudo completar la operación');
+    const error = new Error(datos.message || 'No se pudo completar la operación');
+    // Código estable para casos que la pantalla trata distinto (p. ej. TOO_MANY_ATTEMPTS)
+    error.code = datos.code;
+    throw error;
   }
 
   return datos;

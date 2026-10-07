@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,13 +24,4 @@ function asegurarInicializado() {
 export function getFirebaseAuth() {
   asegurarInicializado();
   return getAuth();
-}
-
-// Firestore del mismo proyecto de Firebase que ya usa la app mobile
-// (productos/reseñas/usuarios/pedidos). Se expone como función, no como
-// instancia directa, por la misma razón que getFirebaseAuth: que solo falle
-// cuando alguien de verdad la use, no al arrancar el servidor.
-export function getFirestoreMobile() {
-  asegurarInicializado();
-  return getFirestore();
 }

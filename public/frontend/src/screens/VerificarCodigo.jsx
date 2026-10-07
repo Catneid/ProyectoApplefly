@@ -18,8 +18,8 @@ const VerificarCodigo = () => {
 
   const manejarEnvio = async (e) => {
     e.preventDefault();
-    if (codigo.length < 6) {
-      setError('Ingresa el código de 6 caracteres');
+    if (!/^d{6}$/.test(codigo)) {
+      setError('Ingresa el código de 6 dígitos');
       return;
     }
     setLoading(true);
@@ -33,6 +33,8 @@ const VerificarCodigo = () => {
     } catch (e) {
       setError(e.message);
       toast.error(e.message);
+      // Tras 5 intentos fallidos el código se invalida: hay que registrarse de nuevo
+      if (e.code === 'TOO_MANY_ATTEMPTS') setTimeout(() => navigate('/registro'), 2500);
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ const VerificarCodigo = () => {
             <div style={{ fontSize: 48, marginBottom: 8 }}>📧</div>
             <h1>Verifica tu cuenta</h1>
             <p className="auth__subtitulo">
-              Enviamos un código de 6 caracteres a{' '}
+              Enviamos un código de 6 dígitos a{' '}
               {email ? <strong>{email}</strong> : 'tu correo'}
             </p>
           </div>
@@ -70,11 +72,13 @@ const VerificarCodigo = () => {
               <label className="auth__label" style={{ textAlign: 'center' }}>Código de verificación</label>
               <input
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 className={`auth__input ${error ? 'auth__input--error' : ''}`}
-                placeholder="abc123"
+                placeholder="123456"
                 maxLength={6}
                 value={codigo}
-                onChange={(e) => { setCodigo(e.target.value); setError(null); }}
+                onChange={(e) => { setCodigo(e.target.value.replace(/D/g, '')); setError(null); }}
                 style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 700, letterSpacing: 8 }}
                 autoFocus
               />

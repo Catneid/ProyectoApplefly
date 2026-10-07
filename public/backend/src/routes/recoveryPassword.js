@@ -10,8 +10,10 @@ const router = express.Router();
  *     tags: [Auth - Clientes]
  *     summary: Solicita un código de recuperación de contraseña por correo
  *     description: >
- *       Genera un código de 6 caracteres y lo guarda en una cookie httpOnly
- *       `recoveryCookie` (15 min), luego lo envía por correo. El siguiente
+ *       Genera un código numérico de 6 dígitos y guarda en la cookie httpOnly
+ *       `recoveryCookie` (15 min) solo su hash (nunca el código). Si el correo
+ *       está registrado, se lo envía por correo. La respuesta es idéntica
+ *       exista o no la cuenta, para no revelar qué correos están registrados. El siguiente
  *       paso (/verifyCode) necesita esa misma cookie, así que las tres
  *       llamadas de este flujo deben hacerse desde el mismo navegador/cliente.
  *     requestBody:
@@ -27,19 +29,19 @@ const router = express.Router();
  *                 format: email
  *     responses:
  *       200:
- *         description: Código enviado, revisa tu correo
+ *         description: Si el correo está registrado, te enviamos un código
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MessageResponse'
- *       404:
- *         description: No existe una cuenta con ese correo
+ *       400:
+ *         description: Correo inválido
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
- *         description: Error al enviar el correo
+ *         description: Error interno del servidor
  *         content:
  *           application/json:
  *             schema:
@@ -70,7 +72,7 @@ router.route("/requestCode").post(recoveryPasswordController.requestCode);
  *             properties:
  *               codeRequest:
  *                 type: string
- *                 example: a1b2c3
+ *                 example: "123456"
  *     responses:
  *       200:
  *         description: Código verificado correctamente
@@ -79,7 +81,15 @@ router.route("/requestCode").post(recoveryPasswordController.requestCode);
  *             schema:
  *               $ref: '#/components/schemas/MessageResponse'
  *       400:
- *         description: Código incorrecto, o expiró (no hay cookie recoveryCookie)
+ *         description: Código incorrecto (el mensaje indica los intentos restantes), o expiró (no hay cookie recoveryCookie)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       429:
+ *         description: >
+ *           5 intentos fallidos. El código queda invalidado (se borra la cookie,
+ *           `code: TOO_MANY_ATTEMPTS`) y hay que pedir uno nuevo con /requestCode.
  *         content:
  *           application/json:
  *             schema:

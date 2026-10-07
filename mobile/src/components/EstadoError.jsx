@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { fonts, sizes } from '../theme/typography';
 
-// Mismo look en toda la app cuando falla una lectura de Firestore: ícono +
+// Mismo look en toda la app cuando falla una lectura de la API: ícono +
 // mensaje + botón opcional para reintentar. `full` (default true) ocupa
 // toda la pantalla; pasá full={false} para un aviso más chico embebido
 // dentro de una pantalla que ya tiene otro contenido (por ejemplo, Inicio,
