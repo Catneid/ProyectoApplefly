@@ -23,7 +23,6 @@
 //   address: string,
 //   photoURL: string,     // opcional — Cloudinary, la sube public/backend
 //   pushToken: string,    // Expo push token del dispositivo (ver pushNotifications.js)
-//   mongoId: string|null, // _id del cliente en MongoDB, si se espejó al registrarse
 //   createdAt: Timestamp,
 // }
 

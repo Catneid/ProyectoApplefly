@@ -12,7 +12,7 @@ const SERVICE_ACCOUNT_PATH = path.join(__dirname, "../../firebaseServiceAccountK
 
 // Inicialización perezosa a propósito: si todavía no pusiste la clave de
 // servicio en su lugar, que falle solo cuando alguien pegue contra una ruta
-// que la necesita (/registerCustomers/mobile) — no que tumbe todo el server
+// que la necesita (p. ej. /registerCustomers/link) — no que tumbe todo el server
 // al arrancar, que rompería el resto de la tienda sin necesidad.
 function asegurarInicializado() {
   if (getApps().length > 0) return;

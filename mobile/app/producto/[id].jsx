@@ -99,9 +99,21 @@ export default function ProductoDetalle() {
     cargarPermisoResena();
   }, [id, user]);
 
+  const agotado = !!producto && Number(producto.stock ?? 0) <= 0;
+
   const agregarAlCarrito = () => {
-    agregarProductoAlCarrito(producto, 1);
-    Alert.alert('Agregado', `${producto.name} se agregó a tu carrito.`);
+    const { agregadas, motivo } = agregarProductoAlCarrito(producto, 1);
+
+    if (agregadas > 0) {
+      Alert.alert('Agregado', `${producto.name} se agregó a tu carrito.`);
+    } else if (motivo === 'agotado') {
+      Alert.alert('Agotado', `${producto.name} ya no tiene unidades disponibles.`);
+    } else {
+      Alert.alert(
+        'Ya tienes el máximo',
+        `Solo hay ${producto.stock} unidades de ${producto.name} y todas están en tu carrito.`
+      );
+    }
   };
 
   const manejarNuevaResena = async ({ rating, comment }) => {
@@ -196,7 +208,7 @@ export default function ProductoDetalle() {
             <FilaSpec label="Color" valor={producto.color} />
             <FilaSpec
               label="Stock"
-              valor={producto.stock != null ? String(producto.stock) : null}
+              valor={producto.stock != null ? (agotado ? 'Agotado' : String(producto.stock)) : null}
             />
           </View>
 
@@ -239,7 +251,11 @@ export default function ProductoDetalle() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton title="Agregar al carrito" onPress={agregarAlCarrito} />
+        <PrimaryButton
+          title={agotado ? 'Agotado' : 'Agregar al carrito'}
+          onPress={agregarAlCarrito}
+          disabled={agotado}
+        />
       </View>
     </SafeAreaView>
   );

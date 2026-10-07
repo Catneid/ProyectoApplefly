@@ -1,6 +1,15 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Sin estas dos variables nada funciona (ni la base de datos ni las sesiones).
+// Mejor fallar al arrancar con un mensaje claro que con un error raro después.
+const faltan = ["DB_URI", "JWT_Secret_key"].filter((nombre) => !process.env[nombre]);
+if (faltan.length > 0) {
+  throw new Error(
+    `Faltan variables de entorno requeridas en el .env: ${faltan.join(", ")}`
+  );
+}
+
 export const config = {
   db: {
     URI: process.env.DB_URI,

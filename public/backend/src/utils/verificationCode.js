@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 import bcryptjs from "bcryptjs";
 import { config } from "../../config.js";
 import codeAttemptModel from "../models/codeAttempts.js";
@@ -34,7 +35,27 @@ export const registerAttempt = async (jti, expSeconds) => {
   const doc = await codeAttemptModel.findOneAndUpdate(
     { jti },
     { $inc: { attempts: 1 }, $setOnInsert: { expiresAt: new Date(expSeconds * 1000) } },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
   return doc.attempts;
+};
+
+// Marca un token como usado, de forma atómica. Devuelve true la primera vez y
+// false si ya se había usado. Sirve para tokens de un solo uso: si no, quien
+// copie la cookie podría reutilizarla hasta que expire.
+//
+// Con upsert: si el jti ya está consumido, el filtro no lo encuentra, Mongo
+// intenta insertarlo y choca con el índice único (E11000) — eso es "ya usado".
+export const consumeCode = async (jti, expSeconds) => {
+  try {
+    await codeAttemptModel.findOneAndUpdate(
+      { jti, consumed: mongoose.trusted({ $ne: true }) },
+      { $set: { consumed: true }, $setOnInsert: { expiresAt: new Date(expSeconds * 1000) } },
+      { upsert: true }
+    );
+    return true;
+  } catch (error) {
+    if (error?.code === 11000) return false;
+    throw error;
+  }
 };

@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 import productModel from "../models/products.js";
 
 export class StockInsuficienteError extends Error {
@@ -36,7 +38,9 @@ export const reservarStock = async (items) => {
 
     for (const item of enOrden) {
       const actualizado = await productModel.findOneAndUpdate(
-        { _id: item.productId, stock: { $gte: item.quantity } },
+        // trusted(): con sanitizeFilter activo (database.js) los operadores en un
+        // filtro se neutralizan salvo que se marquen así. Este es nuestro, no del cliente.
+        { _id: item.productId, stock: mongoose.trusted({ $gte: item.quantity }) },
         { $inc: { stock: -item.quantity } }
       );
 

@@ -9,6 +9,7 @@ import RutaProtegida from '../src/components/RutaProtegida';
 import TextField from '../src/components/TextField';
 import { useAuth } from '../src/context/AuthContext';
 import { useCart } from '../src/context/CartContext';
+import { revisarCarritoContraCatalogo } from '../src/services/carritoCatalogo';
 import { db } from '../src/services/firebase';
 import { cobrarConWompi } from '../src/services/paymentsApi';
 import { colors } from '../src/theme/colors';
@@ -30,7 +31,7 @@ function Seccion({ titulo, children }) {
 
 function CheckoutContenido() {
   const { user } = useAuth();
-  const { items, subtotal, shipping, tax, total, vaciarCarrito } = useCart();
+  const { items, subtotal, shipping, tax, total, vaciarCarrito, reemplazarItems } = useCart();
 
   const [envio, setEnvio] = useState({ nombre: '', apellido: '', direccion: '', ciudad: '', telefono: '' });
   const [tarjeta, setTarjeta] = useState({ numero: '', mes: '', anio: '', cvv: '' });
@@ -90,6 +91,33 @@ function CheckoutContenido() {
     if (!validar()) return;
 
     setProcesando(true);
+
+    // Antes de cobrar se confirma con el servidor que los precios y el stock
+    // del carrito siguen siendo los mismos. Si algo cambió, se actualiza el
+    // carrito, se le avisa a la persona y NO se cobra: tiene que ver el
+    // total nuevo y volver a tocar "Pagar" para confirmarlo.
+    try {
+      const revision = await revisarCarritoContraCatalogo(items);
+      reemplazarItems(revision.items);
+
+      if (revision.cambios.length > 0) {
+        setProcesando(false);
+        Alert.alert(
+          'Tu carrito cambió',
+          revision.cambios.join('\n\n') +
+            '\n\nRevisa el total y toca "Pagar" de nuevo si estás de acuerdo. No se hizo ningún cobro.'
+        );
+        return;
+      }
+    } catch (e) {
+      setProcesando(false);
+      Alert.alert(
+        'No pudimos confirmar tu pedido',
+        'No se pudo verificar los precios y el stock actuales. No se hizo ningún cobro; inténtalo de nuevo.'
+      );
+      return;
+    }
+
     try {
       const datos = await cobrarConWompi({
         // Solo qué se compra: los precios y el total los calcula el backend
@@ -109,6 +137,15 @@ function CheckoutContenido() {
         [{ text: 'Listo', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (e) {
+      // No se sabe si el cobro pasó: el servidor guardó el pedido para revisarlo.
+      // Se vacía el carrito para que no se pague dos veces.
+      if (e.datos?.code === 'PAGO_EN_REVISION') {
+        vaciarCarrito();
+        Alert.alert('Estamos revisando tu pago', e.message, [
+          { text: 'Ver mis pedidos', onPress: () => router.replace('/(tabs)/pedidos') },
+        ]);
+        return;
+      }
       Alert.alert('No se pudo completar el pago', e.message);
     } finally {
       setProcesando(false);

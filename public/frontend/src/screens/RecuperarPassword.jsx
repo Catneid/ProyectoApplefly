@@ -112,7 +112,7 @@ const RecuperarPassword = () => {
                     style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 700, letterSpacing: 8 }}
                     {...formCodigo.register('codigo', {
                       required: 'Escribe el código que te enviamos',
-                      pattern: { value: /^d{6}$/, message: 'El código tiene 6 dígitos' },
+                      pattern: { value: /^\d{6}$/, message: 'El código tiene 6 dígitos' },
                     })}
                   />
                   {formCodigo.formState.errors.codigo && (

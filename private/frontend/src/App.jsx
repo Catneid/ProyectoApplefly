@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAdminAuth } from "./context/AdminAuthContext.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
+import AdminOnlyRoute from "./components/AdminOnlyRoute.jsx";
 import LoginAdmin from "./pages/Login/LoginAdmin.jsx";
 import Dashboard from "./pages/Dashboard/Dashboard.jsx";
 import ListaProductos from "./pages/Products/ListaProductos.jsx";
@@ -30,7 +31,14 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="productos" element={<ListaProductos />} />
         <Route path="categorias" element={<ListaCategorias />} />
-        <Route path="empleados" element={<ListaEmpleados />} />
+        <Route
+          path="empleados"
+          element={
+            <AdminOnlyRoute>
+              <ListaEmpleados />
+            </AdminOnlyRoute>
+          }
+        />
         <Route path="clientes" element={<ListaClientes />} />
         <Route path="pedidos" element={<ListaPedidos />} />
       </Route>

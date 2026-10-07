@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./src/swagger.js";
 
-import limiter from "./src/middlewares/limiter.js";
+import { loginLimiter, registerLimiter, recoveryLimiter } from "./src/middlewares/limiter.js";
 
 import registerCustomerRoutes from "./src/routes/registerCustomer.js";
 import loginCustomerRoutes from "./src/routes/loginCustomer.js";
@@ -16,9 +16,14 @@ import ordersRoutes from "./src/routes/orders.js";
 import contactRoutes from "./src/routes/contact.js";
 import reviewsRoutes from "./src/routes/reviews.js";
 import profileRoutes from "./src/routes/profile.js";
-import wompiAppRoutes from "./src/routes/wompiApp.js";
 
 const app = express();
+
+// Estos servicios corren detrás del proxy de Render. Sin esto, req.ip es la IP
+// del proxy para TODOS los clientes y los limiters los cuentan como una sola
+// persona (30 peticiones entre todos). El 1 es "confía en un solo salto": se
+// usa la IP que agregó el proxy y no una X-Forwarded-For inventada por el cliente.
+app.set("trust proxy", 1);
 
 app.use(
   cors({
@@ -33,11 +38,11 @@ app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// El limiter solo va en las rutas de autenticación, para no estorbar
-// la navegación del catálogo.
-app.use("/api/registerCustomers", limiter, registerCustomerRoutes);
-app.use("/api/loginCustomers", limiter, loginCustomerRoutes);
-app.use("/api/recoveryPassword", limiter, recoveryPasswordRoutes);
+// Los limiters solo van en las rutas de autenticación, para no estorbar la
+// navegación del catálogo. Cada ruta tiene el suyo: no comparten contador.
+app.use("/api/registerCustomers", registerLimiter, registerCustomerRoutes);
+app.use("/api/loginCustomers", loginLimiter, loginCustomerRoutes);
+app.use("/api/recoveryPassword", recoveryLimiter, recoveryPasswordRoutes);
 app.use("/api/logout", logoutRoutes);
 
 app.use("/api/products", productsRoutes);
@@ -46,7 +51,5 @@ app.use("/api/orders", ordersRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/profile", profileRoutes);
-// Pagos de la app mobile, con su propio límite de intentos.
-app.use("/api/wompi/app", limiter, wompiAppRoutes);
 
 export default app;

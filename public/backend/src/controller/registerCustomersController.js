@@ -6,6 +6,9 @@ import HTMLVerificationEmail from "../utils/sendMailVerification.js";
 import {
   MAX_ATTEMPTS, generateCode, newCodeId, hashCode, compareCode, registerAttempt,
 } from "../utils/verificationCode.js";
+import { authCookieOptions } from "../utils/cookieOptions.js";
+import { TOKEN_TYP } from "../utils/tokenTypes.js";
+import { esCorreo } from "../utils/validaciones.js";
 import { config } from "../../config.js";
 
 const registerCustomerController = {};
@@ -14,6 +17,18 @@ registerCustomerController.register = async (req, res) => {
   const { name, lastName, birthdate, email, password } = req.body;
 
   try {
+    // Todo texto: un objeto en el correo llegaría a la consulta de Mongo como
+    // operador, y bcrypt.hash con algo que no es texto tira un error.
+    if (!esCorreo(email)) {
+      return res.status(400).json({ message: "Correo inválido" });
+    }
+    if (typeof password !== "string" || !password) {
+      return res.status(400).json({ message: "La contraseña es requerida" });
+    }
+    if (typeof name !== "string" || typeof lastName !== "string") {
+      return res.status(400).json({ message: "El nombre y el apellido son requeridos" });
+    }
+
     const existCustomer = await customerModel.findOne({ email });
     if (existCustomer) {
       return res.status(400).json({ message: "El correo ya está registrado" });
@@ -25,15 +40,14 @@ registerCustomerController.register = async (req, res) => {
     // En el token solo va el hash del código; el código en claro únicamente
     // viaja por correo.
     const tokenCode = jsonwebtoken.sign(
-      { email, codeHash: await hashCode(verificationCode), name, lastName, birthdate, passwordHash },
+      { typ: TOKEN_TYP.VERIFY_EMAIL, email, codeHash: await hashCode(verificationCode), name, lastName, birthdate, passwordHash },
       config.JWT.secret,
       { expiresIn: "15m", jwtid: newCodeId() }
     );
 
-    res.cookie("verificationToken", tokenCode, {
-      maxAge: 15 * 60 * 1000,
-      httpOnly: true,
-    });
+    // httpOnly + sameSite + secure, las mismas de la cookie de sesión; los
+    // clearCookie de abajo usan authCookieOptions para que el navegador la borre.
+    res.cookie("verificationToken", tokenCode, { ...authCookieOptions, maxAge: 15 * 60 * 1000 });
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -69,7 +83,14 @@ registerCustomerController.verifyCode = async (req, res) => {
     try {
       decoded = jsonwebtoken.verify(token, config.JWT.secret);
     } catch {
-      res.clearCookie("verificationToken");
+      res.clearCookie("verificationToken", authCookieOptions);
+      return res.status(400).json({ message: "Sesión expirada, regístrate de nuevo" });
+    }
+
+    // Solo vale un token de registro: ni una sesión ni un token de recuperación
+    // (firmados con el mismo secreto) pueden pasar por acá.
+    if (decoded.typ !== TOKEN_TYP.VERIFY_EMAIL) {
+      res.clearCookie("verificationToken", authCookieOptions);
       return res.status(400).json({ message: "Sesión expirada, regístrate de nuevo" });
     }
     const { email, codeHash, jti, exp, name, lastName, birthdate, passwordHash } = decoded;
@@ -82,7 +103,7 @@ registerCustomerController.verifyCode = async (req, res) => {
     const attempts = await registerAttempt(jti, exp);
 
     const tooManyAttempts = () => {
-      res.clearCookie("verificationToken");
+      res.clearCookie("verificationToken", authCookieOptions);
       return res.status(429).json({
         code: "TOO_MANY_ATTEMPTS",
         message: "Demasiados intentos fallidos, regístrate de nuevo para recibir un código nuevo",
@@ -109,58 +130,9 @@ registerCustomerController.verifyCode = async (req, res) => {
     });
 
     await newCustomer.save();
-    res.clearCookie("verificationToken");
+    res.clearCookie("verificationToken", authCookieOptions);
 
     return res.status(200).json({ message: "Cuenta verificada exitosamente" });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Error interno del servidor" });
-  }
-};
-
-// Alta de clientes que se registran desde la app mobile (Firebase Auth).
-// A diferencia de /register, acá no hay código por correo: la verificación
-// la maneja Firebase (manda su propio link), así que la cuenta se crea de
-// una. Es la mitad "mobile -> web" del puente de cuentas compartidas; la
-// otra mitad (web -> mobile) vive en mobile/src/context/AuthContext.jsx.
-registerCustomerController.registerFromMobile = async (req, res) => {
-  const { name, lastName, birthdate, email, password, phone, address, firebaseUid } = req.body;
-
-  try {
-    if (!email || !password) {
-      return res.status(400).json({ message: "Correo y contraseña son requeridos" });
-    }
-
-    // verifyFirebaseToken ya validó el ID token y dejó el uid real en
-    // req.uidApp. Si no coincide con el firebaseUid que manda el body,
-    // alguien está intentando registrar una cuenta a nombre de otro uid.
-    if (req.uidApp !== firebaseUid) {
-      return res.status(403).json({ message: "No coincide la sesión con la cuenta que intentás registrar" });
-    }
-
-    const existCustomer = await customerModel.findOne({ email });
-    if (existCustomer) {
-      return res.status(409).json({ message: "El correo ya está registrado" });
-    }
-
-    const passwordHash = await bcryptjs.hash(password, 10);
-
-    const newCustomer = new customerModel({
-      name,
-      lastName,
-      birthdate,
-      email,
-      password: passwordHash,
-      phone,
-      address,
-      isVerified: true,
-      loginAttemps: 0,
-      firebaseUid,
-    });
-
-    await newCustomer.save();
-
-    return res.status(201).json({ message: "Cuenta creada", id: newCustomer._id });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Error interno del servidor" });
@@ -170,10 +142,22 @@ registerCustomerController.registerFromMobile = async (req, res) => {
 // Vincula una cuenta de la web (Mongo) con el usuario de Firebase de la app.
 // Para cuentas que se registraron en la web: en la app se crean en Firebase
 // con el mismo correo pero SIN verificarlo, así que verifyToken no puede
-// vincularlas por correo. Acá la prueba de que son la misma persona es la
-// contraseña de la cuenta de la web. Usa los mismos contadores de intentos y
-// bloqueo que el login, para que no sirva para adivinar contraseñas.
+// vincularlas por correo (Firebase deja crear cuentas con cualquier correo; si
+// bastara con coincidir, cualquiera podría quedarse con una cuenta ajena).
+// Acá la prueba de que son la misma persona es la contraseña de la cuenta de
+// la web. Usa los mismos contadores de intentos y bloqueo que el login, para
+// que no sirva para adivinar contraseñas.
+//
+// Todos los fallos responden IGUAL (mismo status, mismo mensaje y un bcrypt
+// de por medio), exista o no la cuenta de la web, esté vinculada a otro o
+// bloqueada: si no, este endpoint serviría para averiguar qué correos están
+// registrados.
+const HASH_FALSO = bcryptjs.hashSync("hash-de-relleno-para-igualar-tiempos", 10);
+
 registerCustomerController.linkFirebaseAccount = async (req, res) => {
+  const noSePudo = () =>
+    res.status(401).json({ message: "No se pudo vincular la cuenta. Revisa tu contraseña." });
+
   try {
     const { password } = req.body;
 
@@ -188,34 +172,28 @@ registerCustomerController.linkFirebaseAccount = async (req, res) => {
       .findOne({ email: req.emailApp })
       .collation({ locale: "en", strength: 2 });
 
-    if (!customer) {
-      return res.status(404).json({ message: "No hay una cuenta de la web con ese correo" });
+    // Ya vinculada con ESTE usuario de Firebase: nada que probar ni revelar
+    if (customer && customer.firebaseUid === req.uidApp) {
+      return res.status(200).json({ message: "Cuenta vinculada" });
     }
 
-    if (customer.firebaseUid === req.uidApp) {
-      return res.status(200).json({ message: "Cuenta vinculada", id: customer._id });
-    }
+    // El bcrypt se hace siempre, con la cuenta real o con un hash de relleno,
+    // para que tampoco el tiempo de respuesta delate si existe.
+    const coincide = await bcryptjs.compare(password, customer?.password ?? HASH_FALSO);
 
-    if (customer.firebaseUid) {
-      return res.status(409).json({ message: "Esa cuenta ya está vinculada a otro usuario de la app" });
-    }
+    if (!customer || customer.firebaseUid) return noSePudo();
+    if (customer.timeOut && customer.timeOut > Date.now()) return noSePudo();
 
-    if (customer.timeOut && customer.timeOut > Date.now()) {
-      return res.status(403).json({ message: "Cuenta bloqueada temporalmente. Intenta en 15 minutos" });
-    }
-
-    if (!(await bcryptjs.compare(password, customer.password))) {
+    if (!coincide) {
       customer.loginAttemps = (customer.loginAttemps || 0) + 1;
 
       if (customer.loginAttemps >= 5) {
         customer.timeOut = Date.now() + 15 * 60 * 1000;
         customer.loginAttemps = 0;
-        await customer.save();
-        return res.status(403).json({ message: "Cuenta bloqueada por 15 minutos" });
       }
 
       await customer.save();
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+      return noSePudo();
     }
 
     customer.loginAttemps = 0;
@@ -226,13 +204,11 @@ registerCustomerController.linkFirebaseAccount = async (req, res) => {
       await customer.save();
     } catch (error) {
       // Este uid ya está vinculado a otro cliente de Mongo
-      if (error?.code === 11000) {
-        return res.status(409).json({ message: "Tu usuario de la app ya está vinculado a otra cuenta" });
-      }
+      if (error?.code === 11000) return noSePudo();
       throw error;
     }
 
-    return res.status(200).json({ message: "Cuenta vinculada", id: customer._id });
+    return res.status(200).json({ message: "Cuenta vinculada" });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Error interno del servidor" });

@@ -2,8 +2,6 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
-import limiter from "./src/middlewares/limiter.js";
-
 import loginAdminRoutes from "./src/routes/loginAdmin.js";
 import logoutRoutes from "./src/routes/logout.js";
 import productsRoutes from "./src/routes/products.js";
@@ -13,6 +11,12 @@ import customersRoutes from "./src/routes/customers.js";
 import ordersRoutes from "./src/routes/orders.js";
 
 const app = express();
+
+// Corre detrás del proxy de Render. Sin esto, req.ip es la IP del proxy para
+// TODOS los clientes y el limiter del login los cuenta como una sola persona.
+// El 1 es "confía en un solo salto": se usa la IP que agregó el proxy y no una
+// X-Forwarded-For inventada por el cliente.
+app.set("trust proxy", 1);
 
 app.use(
   cors({
@@ -26,7 +30,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
-app.use("/api/loginAdmin", limiter, loginAdminRoutes);
+app.use("/api/loginAdmin", loginAdminRoutes);
 app.use("/api/logout", logoutRoutes);
 app.use("/api/products", productsRoutes);
 app.use("/api/categories", categoriesRoutes);

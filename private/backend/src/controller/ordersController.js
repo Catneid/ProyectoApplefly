@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import orderModel from "../models/orders.js";
 import { notificarCambioEstado } from "../services/notificaciones.js";
+import { devolverStockDePedido } from "../services/inventario.js";
 
 const ordersController = {};
 
@@ -22,45 +24,56 @@ ordersController.getOrderById = async (req, res) => {
   }
 };
 
-ordersController.createOrder = async (req, res) => {
-  try {
-    const { customerId, customerName, customerEmail, products, subtotal, shipping, tax, total, address, phone } = req.body;
-
-    const newOrder = new orderModel({
-      customerId, customerName, customerEmail,
-      products, subtotal, shipping, tax, total,
-      address, phone,
-      status: "pendiente",
-    });
-
-    await newOrder.save();
-    return res.status(201).json({ message: "Pedido creado", order: newOrder });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Error interno" });
-  }
-};
-
 ordersController.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const { id } = req.params;
 
-    if (!orderModel.schema.path("status").enumValues.includes(status)) {
+    if (typeof status !== "string" || !orderModel.schema.path("status").enumValues.includes(status)) {
       return res.status(400).json({ message: "Estado inválido" });
     }
 
-    const anterior = await orderModel.findById(req.params.id).select("status");
+    const anterior = await orderModel.findById(id);
     if (!anterior) return res.status(404).json({ message: "Pedido no encontrado" });
 
-    const updated = await orderModel.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { returnDocument: "after" }
+    // Sin cambios: ni push ni stock
+    if (anterior.status === status) {
+      return res.status(200).json({ message: "Estado actualizado", order: anterior });
+    }
+
+    // Un pedido cancelado ya devolvió su stock; reactivarlo lo dejaría "vivo"
+    // sin stock reservado. Si hay que rehacerlo, se crea un pedido nuevo.
+    if (anterior.status === "cancelado") {
+      return res.status(400).json({ message: "Un pedido cancelado no se puede reactivar" });
+    }
+
+    const cancelando = status === "cancelado";
+
+    // El cambio de estado y la marca de "stock devuelto" son UNA sola
+    // operación, y solo ocurre si el pedido todavía no está cancelado: si dos
+    // peticiones cancelan a la vez, solo una gana y solo ella devuelve el stock.
+    const antes = await orderModel.findOneAndUpdate(
+      { _id: id, status: mongoose.trusted({ $ne: "cancelado" }) },
+      cancelando ? { status, stockDevuelto: true } : { status },
+      { returnDocument: "before" }
     );
 
-    // Solo si el estado de verdad cambió. Sin await: el panel no tiene que
-    // esperar a Firebase ni a Expo, y notificarCambioEstado nunca tira.
-    if (anterior.status !== status) notificarCambioEstado(updated);
+    if (!antes) {
+      // Otra petición lo canceló justo antes que esta
+      const actual = await orderModel.findById(id);
+      if (cancelando && actual?.status === "cancelado") {
+        return res.status(200).json({ message: "Estado actualizado", order: actual });
+      }
+      return res.status(400).json({ message: "Un pedido cancelado no se puede reactivar" });
+    }
+
+    if (cancelando && !antes.stockDevuelto) await devolverStockDePedido(antes);
+
+    const updated = await orderModel.findById(id);
+
+    // Sin await: el panel no tiene que esperar a Firebase ni a Expo, y
+    // notificarCambioEstado nunca tira.
+    notificarCambioEstado(updated);
 
     return res.status(200).json({ message: "Estado actualizado", order: updated });
   } catch {

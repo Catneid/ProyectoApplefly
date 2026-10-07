@@ -13,7 +13,9 @@ const router = express.Router();
  *       Genera un código numérico de 6 dígitos y guarda en la cookie httpOnly
  *       `recoveryCookie` (15 min) solo su hash (nunca el código). Si el correo
  *       está registrado, se lo envía por correo. La respuesta es idéntica
- *       exista o no la cuenta, para no revelar qué correos están registrados. El siguiente
+ *       exista o no la cuenta, para no revelar qué correos están registrados.
+ *       Máximo 3 códigos por hora por correo (se guarda en Mongo con TTL): a
+ *       partir del cuarto la respuesta es la misma, pero no se envía ningún correo. El siguiente
  *       paso (/verifyCode) necesita esa misma cookie, así que las tres
  *       llamadas de este flujo deben hacerse desde el mismo navegador/cliente.
  *     requestBody:

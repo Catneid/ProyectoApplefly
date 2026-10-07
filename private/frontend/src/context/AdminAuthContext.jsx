@@ -23,12 +23,22 @@ export const AdminAuthProvider = ({ children }) => {
 
   useEffect(() => {
     if (!admin) return;
+    // El servidor lee al empleado en la base: la sesión deja de valer si lo
+    // borraron, y el rol que devuelve es el ACTUAL (el guardado en el navegador
+    // puede ser el de cuando inició sesión). Un fallo de red o un 500 no cierra
+    // la sesión, solo un 401/403.
     fetch("/api/loginAdmin/verify", { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) {
+      .then(async (r) => {
+        if (r.status === 401 || r.status === 403) {
           setAdmin(null);
           localStorage.removeItem("adminUser");
+          return;
         }
+        if (!r.ok) return;
+
+        const data = await r.json();
+        setAdmin(data.user);
+        localStorage.setItem("adminUser", JSON.stringify(data.user));
       })
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

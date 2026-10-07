@@ -1,9 +1,13 @@
 import express from "express";
+import { validarId } from "../middlewares/validarId.js";
 import ordersController from "../controller/ordersController.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import { checkoutLimiter } from "../middlewares/limiter.js";
 
 const router = express.Router();
+
+// Un id que no tiene forma de ObjectId no existe: 404 (no un 500 de Mongo)
+router.param("id", validarId);
 
 // Todo lo de pedidos exige sesión iniciada: no se puede comprar
 // ni ver el historial sin haber entrado a la cuenta. La sesión puede ser la
@@ -26,6 +30,17 @@ const router = express.Router();
  *       Wompi rechaza, devuelve el stock y responde 402; (5) si aprueba, crea
  *       el pedido con `payment: { method: "wompi", transactionId, status:
  *       "aprobado", cardLast4 }`. El pedido queda en estado `pendiente`.
+ *
+ *       Cada llamada a Wompi tiene un timeout de 20 segundos. Lo que se hace con
+ *       el stock depende de si Wompi alcanzó a cobrar:
+ *       - **Wompi rechaza** (`esAprobada: false`): se devuelve el stock y se
+ *         responde 402 con el mensaje de Wompi.
+ *       - **Falla el token o la tokenización** (todavía no se cobró): se devuelve
+ *         el stock y se responde 502 "No se pudo procesar el pago, intenta de nuevo".
+ *       - **Falla la red, hay timeout o la respuesta es ilegible DURANTE el cobro**
+ *         (no se sabe si Wompi cobró): el stock NO se devuelve, se guarda un
+ *         pedido en estado `pago-pendiente-revision` para conciliarlo a mano y se
+ *         responde 502 con su referencia. El cliente no debe repetir la compra.
  *
  *       Los datos de la tarjeta nunca se guardan ni se registran.
  *     security:
@@ -95,6 +110,13 @@ const router = express.Router();
  *         description: Sin sesión
  *       402:
  *         description: Wompi rechazó el cobro (el stock se devolvió y no se creó ningún pedido)
+ *       502:
+ *         description: >
+ *           No se pudo completar el pago. Con "intenta de nuevo", falló el token o
+ *           la tokenización (no se cobró, el stock se devolvió). Con "No pudimos
+ *           confirmar tu pago", falló la comunicación durante el cobro: puede
+ *           haberse cobrado, el stock sigue reservado y el body trae `orderId`
+ *           (pedido en estado `pago-pendiente-revision`).
  *       403:
  *         description: Correo de la app sin verificar
  *       409:

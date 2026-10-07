@@ -26,6 +26,10 @@ export const verifyFirebaseToken = async (req, res, next) => {
     // El correo ya verificado por Firebase, para no depender nunca del que
     // mande el body (por ejemplo, al armar un pedido o mandar una notificación).
     req.emailApp = decoded.email || null;
+    // Firebase deja crear una cuenta con cualquier correo sin comprobar que sea
+    // suyo: el correo solo es de quien tiene el token si esto es true. Nunca hay
+    // que tratar req.emailApp como "el dueño de esa cuenta de la web" sin mirarlo.
+    req.emailVerifiedApp = decoded.email_verified === true;
     next();
   } catch (error) {
     return res.status(401).json({ message: "Token inválido o expirado" });

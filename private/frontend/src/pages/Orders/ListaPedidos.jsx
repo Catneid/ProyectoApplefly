@@ -6,7 +6,7 @@ import { IconCart, IconMapPin, IconPhone } from "../../components/Icons.jsx";
 import toast from "react-hot-toast";
 import "../../components/PageHeader.css";
 
-const ESTADOS = ["pendiente", "procesando", "enviado", "entregado", "cancelado"];
+const ESTADOS = ["pendiente", "pago-pendiente-revision", "procesando", "enviado", "entregado", "cancelado"];
 
 const DetallePedido = ({ pedido, onClose }) => {
   if (!pedido) return null;

@@ -1,12 +1,22 @@
+import mongoose from "mongoose";
 import reviewModel from "../models/reviews.js";
 import orderModel from "../models/orders.js";
 
 const reviewsController = {};
 
+// El productId del BODY tiene que ser TEXTO con forma de ObjectId. Un objeto
+// (p. ej. { "$ne": null }) o un texto cualquiera acabarían en un error de
+// conversión de Mongo (500) en vez de un 400. (Los ids de la URL los valida el
+// router con validarId y responden 404.)
+const idValido = (id) => typeof id === "string" && mongoose.isObjectIdOrHexString(id);
+
 const comproElProducto = async (customerId, productId) => {
   const pedido = await orderModel.findOne({
     customerId,
     "products.productId": productId,
+    // Un pago que todavía no se confirmó (ver services/checkout.js) no cuenta
+    // como compra. trusted(): este es un filtro nuestro, no del cliente.
+    status: mongoose.trusted({ $ne: "pago-pendiente-revision" }),
   });
 
   return Boolean(pedido);
@@ -51,6 +61,10 @@ reviewsController.canReview = async (req, res) => {
 reviewsController.createReview = async (req, res) => {
   try {
     const { productId, rating, comment } = req.body;
+
+    if (!idValido(productId)) {
+      return res.status(400).json({ message: "Producto inválido" });
+    }
 
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ message: "La calificación debe ser de 1 a 5 estrellas" });

@@ -125,7 +125,11 @@
  *           description: Monto que se cobró (calculado por el servidor)
  *         status:
  *           type: string
- *           enum: [pendiente, procesando, enviado, entregado, cancelado]
+ *           enum: [pendiente, pago-pendiente-revision, procesando, enviado, entregado, cancelado]
+ *           description: >
+ *             pago-pendiente-revision: Wompi no contestó con claridad durante el
+ *             cobro (red/timeout), así que no se sabe si cobró. El stock sigue
+ *             reservado hasta que alguien concilie el pago a mano.
  *         address:
  *           type: string
  *         phone:

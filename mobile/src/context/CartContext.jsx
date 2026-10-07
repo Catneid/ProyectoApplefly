@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { calcularTotales } from '../services/precios';
+
 const CartContext = createContext(null);
 
 // v2: antes los productos eran de Firestore y el carrito guardaba esos ids.
@@ -9,11 +11,10 @@ const CartContext = createContext(null);
 const CLAVE_STORAGE = 'applefly_carrito_v2';
 const CLAVE_STORAGE_VIEJA = 'applefly_carrito';
 
-// Mismas constantes que public/frontend/src/context/CartContext.jsx, para
-// que el total que ve alguien en la app sea igual al que vería en la web.
-const ENVIO = 15;
-const ENVIO_GRATIS_DESDE = 500;
-const IVA = 0.13;
+// Tope de unidades que se pueden tener de un producto: su stock. Un item viejo
+// (guardado antes de que el carrito recordara el stock) no trae el dato y no
+// tiene tope; el checkout lo corrige al revisar el catálogo.
+const tope = (stock) => (Number.isFinite(stock) ? Math.max(stock, 0) : Infinity);
 
 // Mismo espíritu que el hook useLocalStorage de la web, pero AsyncStorage es
 // asíncrono: arrancamos en [] y actualizamos en cuanto responde, en vez de
@@ -25,6 +26,11 @@ export const CartProvider = ({ children }) => {
   // Evita que la primera escritura (disparada por el setItems del propio
   // useEffect de carga) pise el storage con [] antes de haber leído nada.
   const yaCargado = useRef(false);
+
+  // Copia del carrito siempre al día (se asigna en cada render) para decidir
+  // en el momento de tocar "agregar" sin esperar al siguiente render.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   useEffect(() => {
     (async () => {
@@ -48,50 +54,85 @@ export const CartProvider = ({ children }) => {
     });
   }, [items]);
 
+  // Devuelve { agregadas, motivo }: cuántas unidades se agregaron de verdad.
+  // motivo = 'agotado' (stock 0) o 'maximo' (ya hay en el carrito todo el
+  // stock) cuando no entró todo lo pedido; undefined si entró todo.
   const agregarAlCarrito = (producto, cantidad = 1) => {
-    setItems((actuales) => {
-      const existente = actuales.find((item) => item.productId === producto.id);
-      if (existente) {
-        return actuales.map((item) =>
-          item.productId === producto.id
-            ? { ...item, quantity: item.quantity + cantidad }
-            : item
-        );
-      }
-      return [
-        ...actuales,
-        {
-          productId: producto.id,
-          name: producto.name,
-          price: producto.price,
-          image: producto.image ?? null,
-          quantity: cantidad,
-        },
-      ];
-    });
+    const maximo = tope(producto.stock);
+    if (maximo === 0) return { agregadas: 0, motivo: 'agotado' };
+
+    const enCarrito = itemsRef.current.find((item) => item.productId === producto.id)?.quantity ?? 0;
+    const agregadas = Math.max(Math.min(cantidad, maximo - enCarrito), 0);
+
+    if (agregadas > 0) {
+      setItems((actuales) => {
+        const existente = actuales.find((item) => item.productId === producto.id);
+        if (existente) {
+          return actuales.map((item) =>
+            item.productId === producto.id
+              ? {
+                  ...item,
+                  // Se refresca el stock y el precio con lo último que se vio
+                  stock: producto.stock,
+                  price: producto.price,
+                  quantity: Math.min(item.quantity + agregadas, maximo),
+                }
+              : item
+          );
+        }
+        return [
+          ...actuales,
+          {
+            productId: producto.id,
+            name: producto.name,
+            price: producto.price,
+            image: producto.image ?? null,
+            stock: producto.stock,
+            quantity: agregadas,
+          },
+        ];
+      });
+    }
+
+    return { agregadas, motivo: agregadas < cantidad ? 'maximo' : undefined };
   };
 
   const quitarDelCarrito = (productId) => {
     setItems((actuales) => actuales.filter((item) => item.productId !== productId));
   };
 
+  // Devuelve false si se pidió más de lo que hay en stock (se deja en el máximo).
   const actualizarCantidad = (productId, cantidad) => {
     if (cantidad < 1) {
       quitarDelCarrito(productId);
-      return;
+      return true;
     }
+
+    const item = itemsRef.current.find((i) => i.productId === productId);
+    const maximo = tope(item?.stock);
     setItems((actuales) =>
-      actuales.map((item) => (item.productId === productId ? { ...item, quantity: cantidad } : item))
+      actuales.map((i) =>
+        i.productId === productId ? { ...i, quantity: Math.min(cantidad, tope(i.stock)) } : i
+      )
     );
+    return cantidad <= maximo;
   };
+
+  // Reemplaza el carrito completo (lo usa el checkout al reconciliarlo con el catálogo)
+  const reemplazarItems = (nuevos) => setItems(nuevos);
 
   const vaciarCarrito = () => setItems([]);
 
-  const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
+  // Mismo cálculo, con las mismas funciones, que el servidor al cobrar
+  // (public/backend/src/utils/precios.js): ni un centavo de diferencia.
+  const subtotalBruto = items.reduce((total, item) => total + item.price * item.quantity, 0);
   const cantidadTotal = items.reduce((total, item) => total + item.quantity, 0);
-  const shipping = subtotal === 0 || subtotal >= ENVIO_GRATIS_DESDE ? 0 : ENVIO;
-  const tax = +(subtotal * IVA).toFixed(2);
-  const total = +(subtotal + shipping + tax).toFixed(2);
+  const totales = calcularTotales(subtotalBruto);
+  const subtotal = totales.subtotal;
+  // Carrito vacío: no hay nada que enviar, así que tampoco se muestra envío
+  const shipping = items.length === 0 ? 0 : totales.shipping;
+  const tax = totales.tax;
+  const total = items.length === 0 ? 0 : totales.total;
 
   return (
     <CartContext.Provider
@@ -102,6 +143,7 @@ export const CartProvider = ({ children }) => {
         quitarDelCarrito,
         actualizarCantidad,
         vaciarCarrito,
+        reemplazarItems,
         subtotal,
         cantidadTotal,
         shipping,

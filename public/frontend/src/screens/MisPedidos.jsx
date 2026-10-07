@@ -7,6 +7,7 @@ import './MisPedidos.css';
 // en qué punto va la entrega.
 const ESTADOS = {
   pendiente: { texto: 'Pendiente', clase: 'pendiente' },
+  'pago-pendiente-revision': { texto: 'Pago en revisión', clase: 'pendiente' },
   procesando: { texto: 'En preparación', clase: 'procesando' },
   enviado: { texto: 'Enviado', clase: 'enviado' },
   entregado: { texto: 'Entregado', clase: 'entregado' },

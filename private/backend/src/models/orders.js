@@ -20,11 +20,16 @@ const orderSchema = new Schema(
     total: { type: Number },
     status: {
       type: String,
-      enum: ["pendiente", "procesando", "enviado", "entregado", "cancelado"],
+      // "pago-pendiente-revision": Wompi no contestó con claridad durante el cobro, no se sabe si cobró; alguien lo concilia a mano
+      enum: ["pendiente", "pago-pendiente-revision", "procesando", "enviado", "entregado", "cancelado"],
       default: "pendiente",
     },
     address: { type: String },
     phone: { type: String },
+
+    // true cuando el pedido se canceló y su stock ya volvió al inventario. Lo
+    // pone el panel junto con el cambio de estado, para devolverlo UNA sola vez.
+    stockDevuelto: { type: Boolean, default: false },
 
     // Pago hecho con Wompi (lo escribe public/backend al cobrar). Sin esto
     // en el schema, el panel no lo recibiría.

@@ -1,5 +1,5 @@
 import contactMessageModel from "../models/contactMessages.js";
-import { texto } from "../utils/validaciones.js";
+import { esCorreo, texto } from "../utils/validaciones.js";
 
 const contactController = {};
 
@@ -12,7 +12,7 @@ contactController.create = async (req, res) => {
     if (!name || !message) {
       return res.status(400).json({ message: "El nombre y el mensaje son requeridos" });
     }
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    if (!esCorreo(email)) {
       return res.status(400).json({ message: "El correo no es válido" });
     }
 

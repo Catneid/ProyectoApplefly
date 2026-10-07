@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -10,7 +11,8 @@ import {
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { auth, db } from '../services/firebase';
-import { loginLegacy, perfilLegacy, registrarEnMongo, vincularCuentaWebUnaVez } from '../services/legacyApi';
+import { loginLegacy, perfilLegacy, vincularCuentaWebUnaVez } from '../services/legacyApi';
+import { sincronizarPerfilEnMongo } from '../services/perfilSync';
 import { registrarPushToken } from '../services/pushNotifications';
 
 const AuthContext = createContext(null);
@@ -35,43 +37,32 @@ export const AuthProvider = ({ children }) => {
       // la app si falla (permiso denegado, sin projectId de EAS, etc.).
       if (firebaseUser) {
         registrarPushToken(firebaseUser.uid);
+        sincronizarPerfilEnMongo(firebaseUser);
       }
     });
 
-    return unsubscribe;
+    // Al volver a la app (p. ej. después de abrir el enlace de verificación del
+    // correo) se reintenta copiar el perfil a Mongo si todavía no se pudo.
+    const suscripcionAppState = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active' && auth.currentUser) {
+        sincronizarPerfilEnMongo(auth.currentUser);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      suscripcionAppState.remove();
+    };
   }, []);
 
   const register = async ({ name, lastName, birthdate, email, password, phone, address }) => {
     const credencial = await createUserWithEmailAndPassword(auth, email, password);
 
-    // El backend valida este token para confirmar que el firebaseUid del
-    // body es realmente el uid de quien llama, no uno inventado.
-    const idToken = await credencial.user.getIdToken();
-
-    // Espejo en Mongo, para que la misma cuenta sirva también para
-    // loguearse en la web. Es best-effort: si el backend clásico no
-    // responde (URL sin configurar, sin red), seguimos igual con la cuenta
-    // de Firebase sola. Lo único que sí frena el alta es un conflicto real.
-    const resultadoMongo = await registrarEnMongo({
-      name,
-      lastName,
-      birthdate,
-      email,
-      password,
-      phone,
-      address,
-      firebaseUid: credencial.user.uid,
-      idToken,
-    });
-
-    if (resultadoMongo.status === 'conflict') {
-      // Ya existía una cuenta de la web con este correo (con otra
-      // contraseña, seguramente). No la pisamos: deshacemos el alta de
-      // Firebase en vez de dejar dos identidades sueltas para el mismo email.
-      await credencial.user.delete();
-      throw new Error('Ya existe una cuenta con este correo. Iniciá sesión en lugar de registrarte.');
-    }
-
+    // Al backend no se le manda nada en el registro (ni la contraseña): el
+    // cliente de MongoDB se crea, o se vincula con una cuenta de la web que ya
+    // exista con ese correo, recién cuando el correo está VERIFICADO (ver
+    // verifyToken en public/backend y src/services/perfilSync.js). Hasta
+    // entonces se puede explorar la app, pero no comprar ni ver pedidos.
     await sendEmailVerification(credencial.user);
 
     // Firebase Auth solo guarda email/uid/password; el resto de los datos
@@ -83,7 +74,6 @@ export const AuthProvider = ({ children }) => {
       phone,
       address,
       createdAt: serverTimestamp(),
-      mongoId: resultadoMongo.id ?? null,
     });
 
     return credencial.user;
@@ -109,6 +99,17 @@ export const AuthProvider = ({ children }) => {
         // Mongo ya validó la contraseña: creamos la cuenta espejo para que
         // de acá en adelante entre por el camino normal de Firebase.
         const credencial = await createUserWithEmailAndPassword(auth, email, password);
+
+        // La cuenta espejo nace con el correo SIN verificar. Se manda el correo
+        // de verificación (igual que en el registro) para que la persona pueda
+        // comprar y ver sus pedidos. Best-effort: si falla no se rompe el login,
+        // se puede reenviar desde la app.
+        try {
+          await sendEmailVerification(credencial.user);
+        } catch (errorCorreo) {
+          console.warn('[auth] No se pudo enviar el correo de verificación:', errorCorreo.message);
+        }
+
         const perfil = await perfilLegacy();
 
         await setDoc(doc(db, 'users', credencial.user.uid), {

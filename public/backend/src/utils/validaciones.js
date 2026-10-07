@@ -3,6 +3,12 @@
 
 export const texto = (valor, max) => (typeof valor === "string" ? valor.trim().slice(0, max) : "");
 
+// Un correo "razonable": TEXTO (no un objeto como { "$ne": null }, que en una
+// consulta de Mongo se interpretaría como operador), sin espacios, con @ y un
+// punto en el dominio, y de largo acotado.
+export const esCorreo = (valor) =>
+  typeof valor === "string" && valor.length <= 254 && /^\S+@\S+\.\S+$/.test(valor);
+
 // Devuelve la tarjeta normalizada (strings limpios) o null si no es válida.
 export const leerTarjeta = (tarjeta) => {
   const numero = String(tarjeta?.numero ?? "").replace(/\s/g, "");

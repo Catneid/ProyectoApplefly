@@ -1,9 +1,11 @@
 import express from "express";
+import { validarId } from "../middlewares/validarId.js";
 import productsController from "../controller/productsController.js";
 import upload from "../utils/cloudinaryConfig.js";
 import { verifyAdmin } from "../middlewares/verifyToken.js";
 
 const router = express.Router();
+router.param("id", validarId);
 
 router.get("/count", productsController.countProducts);
 

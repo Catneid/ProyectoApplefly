@@ -1,6 +1,8 @@
 import jsonwebtoken from "jsonwebtoken";
+import mongoose from "mongoose";
 import { config } from "../../config.js";
 import employeeModel from "../models/employees.js";
+import { TOKEN_TYP } from "../utils/tokenTypes.js";
 
 // Este backend es solo del panel de administración. verifyAdmin solo
 // comprueba que haya una sesión válida del panel (cualquier empleado,
@@ -13,6 +15,17 @@ export const verifyAdmin = (req, res, next) => {
 
   try {
     const decoded = jsonwebtoken.verify(token, config.JWT.secret);
+
+    // El secreto es compartido con public/backend (sesiones de cliente,
+    // recuperación de contraseña...): se exige el typ de sesión de admin y un
+    // id de empleado real, no solo userType.
+    if (
+      decoded.typ !== TOKEN_TYP.ADMIN_SESSION ||
+      typeof decoded.id !== "string" ||
+      !mongoose.isObjectIdOrHexString(decoded.id)
+    ) {
+      return res.status(401).json({ message: "Token inválido" });
+    }
 
     if (decoded.userType !== "admin") {
       return res.status(403).json({ message: "Acceso denegado" });

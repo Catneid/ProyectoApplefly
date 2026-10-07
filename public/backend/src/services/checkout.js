@@ -3,7 +3,12 @@ import mongoose from "mongoose";
 import orderModel from "../models/orders.js";
 import productModel from "../models/products.js";
 import { reservarStock, liberarStock } from "./stock.js";
-import { procesarCobroWompi, WompiHttpError } from "./wompiPagos.js";
+import {
+  procesarCobroWompi,
+  WompiCobroIncierto,
+  WompiHttpError,
+  WompiRechazoError,
+} from "./wompiPagos.js";
 import { calcularTotales } from "../utils/precios.js";
 import { leerTarjeta, texto } from "../utils/validaciones.js";
 
@@ -63,6 +68,43 @@ export const calcularPedido = async (items) => {
   return { productos, ...calcularTotales(subtotal) };
 };
 
+// El cobro quedó en duda (ver WompiCobroIncierto): no se sabe si Wompi cobró.
+// Se guarda un pedido "pago-pendiente-revision" con el stock todavía reservado,
+// para que alguien lo concilie con Wompi a mano (aprobarlo o cancelarlo y
+// devolver el stock desde el panel). Devuelve el pedido, o null si ni eso se
+// pudo guardar.
+const guardarPedidoPendienteRevision = async ({ user, nombre, calculado, direccion, telefono, cardLast4, causa }) => {
+  const resumen = calculado.productos.map((p) => ({ productId: String(p.productId), quantity: p.quantity }));
+
+  // Nunca incluye datos de tarjeta: solo lo necesario para conciliar el cobro
+  console.log(
+    `[checkout] CRÍTICO: no se pudo confirmar el cobro con Wompi (puede haber cobrado). customerId=${user.id} monto=${calculado.total} productos=${JSON.stringify(resumen)} tarjeta=****${cardLast4 ?? "?"} causa=${causa?.message ?? "desconocida"}`
+  );
+
+  try {
+    return await orderModel.create({
+      customerId: user.id,
+      customerName: nombre,
+      customerEmail: user.email,
+      products: calculado.productos,
+      subtotal: calculado.subtotal,
+      shipping: calculado.shipping,
+      tax: calculado.tax,
+      total: calculado.total,
+      address: direccion,
+      phone: telefono,
+      payment: { method: "wompi", status: "pendiente-revision", cardLast4 },
+      status: "pago-pendiente-revision",
+    });
+  } catch (error) {
+    console.log(
+      `[checkout] CRÍTICO: tampoco se pudo guardar el pedido en revisión (customerId=${user.id} monto=${calculado.total} productos=${JSON.stringify(resumen)}):`,
+      error
+    );
+    return null;
+  }
+};
+
 // El único camino para crear un pedido pagado (lo usan la web y la app):
 //   1. calcula el total desde Mongo,
 //   2. reserva el stock (atómico),
@@ -99,15 +141,45 @@ export const procesarCheckout = async ({ user, customerName, products, address, 
       tarjeta: tarjetaValida,
     });
   } catch (error) {
+    // Tres situaciones MUY distintas según si Wompi alcanzó a cobrar:
+
+    // 3) No sabemos si cobró (red, timeout, respuesta ilegible DURANTE el cobro).
+    //    El stock NO se devuelve: si Wompi sí cobró, el cliente pagó por esos
+    //    productos. Se guarda un pedido para que alguien lo revise a mano.
+    if (error instanceof WompiCobroIncierto) {
+      const pedidoRevision = await guardarPedidoPendienteRevision({
+        user, nombre, calculado, direccion, telefono, cardLast4: error.cardLast4, causa: error.causa,
+      });
+
+      throw new CheckoutError(
+        502,
+        pedidoRevision
+          ? `No pudimos confirmar tu pago. No lo repitas: revisaremos tu pedido (referencia ${pedidoRevision._id}) y te contactaremos.`
+          : "No pudimos confirmar tu pago. No lo repitas: revisaremos tu compra y te contactaremos.",
+        // code: para que la web y la app vacíen el carrito y no inviten a reintentar
+        { code: "PAGO_EN_REVISION", ...(pedidoRevision && { orderId: String(pedidoRevision._id) }) }
+      );
+    }
+
+    // En los demás casos Wompi NO cobró: se devuelve el stock.
     await liberarStock(calculado.productos);
 
-    // Nunca se reenvía al cliente el texto crudo de Wompi, solo mensajes
-    // pensados para mostrarse.
+    // 1) Rechazo explícito de Wompi (esAprobada === false): su mensaje es para el cliente.
+    if (error instanceof WompiRechazoError) {
+      throw new CheckoutError(402, error.message);
+    }
+
+    // Wompi contestó con un 4xx (p. ej. la tarjeta no se pudo tokenizar o el
+    // cobro no es válido). Nunca se reenvía al cliente el texto crudo de Wompi.
     if (error instanceof WompiHttpError) {
-      console.log("[checkout] Wompi respondió con error:", error.wompiRaw);
+      console.log("[checkout] Wompi respondió con error:", error.status, error.wompiRaw);
       throw new CheckoutError(402, "No se pudo procesar el pago, revisa los datos de la tarjeta");
     }
-    throw new CheckoutError(402, error.message || "El pago fue rechazado");
+
+    // 2) Falló el token o la tokenización: problema nuestro o de Wompi, todavía
+    //    no se cobró nada. Nunca se muestra error.message (es de node-fetch).
+    console.log("[checkout] No se pudo preparar el cobro con Wompi:", error.causa?.message ?? error.message);
+    throw new CheckoutError(502, "No se pudo procesar el pago, intenta de nuevo");
   }
 
   const pedido = new orderModel({

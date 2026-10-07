@@ -62,7 +62,7 @@ export default function Registro() {
       // al home (createUserWithEmailAndPassword deja la sesión iniciada).
       Alert.alert(
         'Revisá tu correo',
-        'Te enviamos un enlace para verificar tu cuenta. Podés seguir usando la app mientras tanto.'
+        'Te enviamos un enlace para verificar tu cuenta. Podés explorar la app mientras tanto, pero necesitás verificar tu correo para comprar y ver tus pedidos.'
       );
     } catch (e) {
       setErrorGeneral(mensajeErrorFirebase(e));

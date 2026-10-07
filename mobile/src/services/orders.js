@@ -22,7 +22,9 @@ const INTERVALO_MS = 20000;
 //
 // onError solo se llama si falla la PRIMERA carga (para mostrar "reintentar");
 // un fallo de red en una repetición se ignora y se vuelve a intentar luego,
-// con la lista anterior todavía en pantalla.
+// con la lista anterior todavía en pantalla. Cada carga que sale bien llama a
+// callback, y quien lo usa debe limpiar su estado de error ahí (la repetición
+// sigue corriendo aunque la primera haya fallado, y así se recupera sola).
 //
 // El primer parámetro se conserva por compatibilidad: ya no hace falta, el
 // backend toma el cliente de la sesión.

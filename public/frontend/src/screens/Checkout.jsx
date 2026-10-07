@@ -87,6 +87,16 @@ const Checkout = () => {
       refreshProductos();
       toast.success('¡Pago aprobado! Tu pedido fue registrado');
     } catch (e) {
+      // No se sabe si el cobro pasó: el servidor guardó el pedido para revisarlo
+      // y el stock sigue reservado. Se vacía el carrito para que no se pague
+      // dos veces, y se lleva al cliente a ver su pedido.
+      if (e.code === 'PAGO_EN_REVISION') {
+        clearCart();
+        refreshProductos();
+        toast.error(e.message, { duration: 10000 });
+        navigate('/mis-pedidos');
+        return;
+      }
       toast.error(e.message);
     }
   };

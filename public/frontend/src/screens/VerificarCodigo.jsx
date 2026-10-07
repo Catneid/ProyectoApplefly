@@ -18,7 +18,7 @@ const VerificarCodigo = () => {
 
   const manejarEnvio = async (e) => {
     e.preventDefault();
-    if (!/^d{6}$/.test(codigo)) {
+    if (!/^\d{6}$/.test(codigo)) {
       setError('Ingresa el código de 6 dígitos');
       return;
     }
@@ -78,7 +78,7 @@ const VerificarCodigo = () => {
                 placeholder="123456"
                 maxLength={6}
                 value={codigo}
-                onChange={(e) => { setCodigo(e.target.value.replace(/D/g, '')); setError(null); }}
+                onChange={(e) => { setCodigo(e.target.value.replace(/\D/g, '')); setError(null); }}
                 style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 700, letterSpacing: 8 }}
                 autoFocus
               />

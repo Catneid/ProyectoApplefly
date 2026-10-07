@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EstadoCargando from '../../src/components/EstadoCargando';
@@ -13,11 +13,12 @@ import { escucharMisOrdenes } from '../../src/services/orders';
 import { colors } from '../../src/theme/colors';
 import { fonts, sizes } from '../../src/theme/typography';
 
-// Los 5 estados que maneja el panel de administración. Los colores están pensados para
+// Los estados que maneja el panel de administración. Los colores están pensados para
 // leerse de un vistazo: gris = todavía no se movió, azul = en curso, verde
 // = terminó bien, rojo = terminó mal.
 const ESTADOS = {
   pendiente: { label: 'Pendiente', bg: colors.surfaceAlt, text: colors.textMuted },
+  'pago-pendiente-revision': { label: 'Pago en revisión', bg: colors.surfaceAlt, text: colors.textMuted },
   procesando: { label: 'Procesando', bg: colors.primarySoft, text: colors.primaryDark },
   enviado: { label: 'Enviado', bg: colors.primaryDark, text: colors.white },
   entregado: { label: 'Entregado', bg: colors.success, text: colors.white },
@@ -110,31 +111,49 @@ function PedidosContenido() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
   const [seleccionado, setSeleccionado] = useState(null);
-  // Cambiar esto vuelve a montar el efecto de abajo, lo que arma de nuevo
-  // la carga periódica — es el "Reintentar" del estado de error.
+  // Cambiar esto vuelve a armar la carga periódica de abajo — es el
+  // "Reintentar" del estado de error.
   const [intento, setIntento] = useState(0);
 
-  useEffect(() => {
-    if (!user) return;
-    setCargando(true);
-    setError(false);
+  // Para no tapar una lista que ya se ve con la pantalla de error si falla
+  // una recarga al volver a la pestaña
+  const hayDatos = useRef(false);
 
-    // Carga periódica en vez de una carga única: si el panel actualiza el
-    // status de un pedido (por ejemplo, de "procesando" a "enviado"), la
-    // lista se refresca sola, sin que el cliente tenga que hacer nada.
-    const unsubscribe = escucharMisOrdenes(
-      user.uid,
-      (lista) => {
-        setOrdenes(lista);
-        setCargando(false);
-      },
-      () => {
-        setError(true);
-        setCargando(false);
-      }
-    );
-    return unsubscribe;
-  }, [user, intento]);
+  // La carga periódica solo corre mientras esta pestaña está a la vista: al
+  // cambiar de pestaña se cancela y al volver se retoma (con una carga
+  // inmediata, así la lista está al día apenas se abre).
+  //
+  // Si el panel actualiza el status de un pedido (por ejemplo, de
+  // "procesando" a "enviado"), la lista se refresca sola, sin que el cliente
+  // tenga que hacer nada.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return undefined;
+
+      return escucharMisOrdenes(
+        user.uid,
+        (lista) => {
+          hayDatos.current = true;
+          setOrdenes(lista);
+          setCargando(false);
+          // Una carga que salió bien borra un error anterior (si no, la
+          // pantalla de error se quedaría aunque ya llegaran los datos)
+          setError(false);
+        },
+        () => {
+          if (hayDatos.current) return;
+          setError(true);
+          setCargando(false);
+        }
+      );
+    }, [user, intento])
+  );
+
+  const reintentar = () => {
+    setError(false);
+    setCargando(true);
+    setIntento((n) => n + 1);
+  };
 
   if (cargando) {
     return <EstadoCargando />;
@@ -144,7 +163,7 @@ function PedidosContenido() {
     return (
       <EstadoError
         mensaje="No pudimos cargar tus pedidos."
-        onReintentar={() => setIntento((n) => n + 1)}
+        onReintentar={reintentar}
       />
     );
   }

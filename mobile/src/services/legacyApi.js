@@ -9,7 +9,7 @@
 // "localhost" es el celular mismo, no tu PC.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { apiFetch } from './api';
+import { ApiError, apiFetch } from './api';
 
 const BASE_URL = process.env.EXPO_PUBLIC_LEGACY_API_URL;
 
@@ -42,59 +42,6 @@ export async function loginLegacy(email, password) {
   return datos?.user ?? null;
 }
 
-// Espejo en Mongo de una cuenta que se acaba de crear en Firebase, para que
-// sirva también para loguearse en la web. Devuelve:
-// - { status: 'ok', id }       -> se creó bien, id = _id de Mongo
-// - { status: 'conflict' }     -> ya había una cuenta de la web con ese email
-// - { status: 'unreachable' }  -> no se pudo llegar al backend clásico (URL
-//   sin configurar, sin red, error del servidor). No bloqueamos el alta de
-//   la app por esto: es un espejo best-effort, no una dependencia dura.
-export async function registrarEnMongo({
-  name,
-  lastName,
-  birthdate,
-  email,
-  password,
-  phone,
-  address,
-  firebaseUid,
-  idToken,
-}) {
-  if (!BASE_URL) {
-    console.warn('[legacyApi] EXPO_PUBLIC_LEGACY_API_URL no está configurada: la cuenta no se espeja en Mongo.');
-    return { status: 'unreachable' };
-  }
-
-  let respuesta;
-  try {
-    respuesta = await fetch(`${BASE_URL}/api/registerCustomers/mobile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // El backend usa esto para confirmar que quien pide crear el
-        // espejo es realmente el dueño del firebaseUid del body, no
-        // cualquiera que adivine/copie un uid ajeno.
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ name, lastName, birthdate, email, password, phone, address, firebaseUid }),
-    });
-  } catch (error) {
-    console.warn('[legacyApi] No se pudo llegar al backend clásico (registerCustomers/mobile):', error.message);
-    return { status: 'unreachable' };
-  }
-
-  if (respuesta.status === 409) return { status: 'conflict' };
-
-  if (!respuesta.ok) {
-    const texto = await respuesta.text().catch(() => '');
-    console.warn(`[legacyApi] registerCustomers/mobile respondió ${respuesta.status}: ${texto}`);
-    return { status: 'unreachable' };
-  }
-
-  const datos = await respuesta.json().catch(() => null);
-  return { status: 'ok', id: datos?.id ?? null };
-}
-
 // Perfil completo (lastName, birthdate, phone, address) vía /api/profile.
 // Necesita la cookie de sesión que dejó loginLegacy(). Si por lo que sea no
 // viajó (RN no siempre persiste cookies entre llamadas igual que un
@@ -119,26 +66,55 @@ export async function perfilLegacy() {
 // verificar y el backend no vincula por correo sin verificar (cualquiera
 // podría crear en Firebase el correo de otra persona).
 //
-// Se intenta UNA sola vez por dispositivo y usuario: si la contraseña de
-// Firebase y la de la web ya no coinciden, repetirlo en cada login contaría
-// intentos fallidos y bloquearía la cuenta de la web. Nunca tira: es
-// best-effort y no puede romper el login. Si el correo ya está verificado no
-// hace falta, el backend vincula solo.
+// Se da por resuelto (y no se repite) solo con una respuesta DEFINITIVA del
+// servidor: éxito, o 401/404/409 (contraseña que no coincide, sin cuenta en la
+// web, ya vinculada a otra). Si la llamada falla por red, timeout, 5xx, 429,
+// etc., la marca NO se guarda y se reintenta en el próximo login: si se
+// guardara antes, un fallo pasajero dejaría a la persona sin vincular para
+// siempre (y con 403 en todo lo que exige correo verificado).
+//
+// Ojo con el otro lado: si la contraseña de Firebase y la de la web ya no
+// coinciden, cada intento cuenta como fallido y bloquea la cuenta de la web.
+// Por eso un 401 también cierra el asunto, en vez de repetirse en cada login.
+//
+// Nunca tira: es best-effort y no puede romper el login. Si el correo ya está
+// verificado no hace falta, el backend vincula solo.
+const RESPUESTAS_DEFINITIVAS = [401, 404, 409];
+
+// Evita dos intentos a la vez del mismo usuario (la marca recién se guarda al
+// terminar, así que sin esto dos logins seguidos contarían doble).
+const vinculando = new Set();
+
 export async function vincularCuentaWebUnaVez(usuarioFirebase, password) {
   if (usuarioFirebase.emailVerified) return;
 
   const clave = `cuenta_web_vinculada_${usuarioFirebase.uid}`;
+  if (vinculando.has(clave)) return;
+  vinculando.add(clave);
+
   try {
     if (await AsyncStorage.getItem(clave)) return;
-    await AsyncStorage.setItem(clave, '1');
 
-    await apiFetch('/registerCustomers/link', {
-      method: 'POST',
-      auth: true,
-      body: { password },
-    });
+    try {
+      await apiFetch('/registerCustomers/link', {
+        method: 'POST',
+        auth: true,
+        body: { password },
+      });
+    } catch (error) {
+      if (!(error instanceof ApiError) || !RESPUESTAS_DEFINITIVAS.includes(error.status)) {
+        // Fallo pasajero: sin marca, se vuelve a intentar en el próximo login
+        console.warn('[legacyApi] No se pudo vincular con la cuenta de la web, se reintentará:', error.message);
+        return;
+      }
+      // 404 = no hay cuenta de la web con ese correo (usuario solo de la app): normal
+      console.warn('[legacyApi] No se vinculó con la cuenta de la web:', error.message);
+    }
+
+    await AsyncStorage.setItem(clave, '1');
   } catch (error) {
-    // 404 = no hay cuenta de la web con ese correo (usuario solo de la app): normal
-    console.warn('[legacyApi] No se vinculó con la cuenta de la web:', error.message);
+    console.warn('[legacyApi] No se pudo revisar la vinculación con la cuenta de la web:', error.message);
+  } finally {
+    vinculando.delete(clave);
   }
 }

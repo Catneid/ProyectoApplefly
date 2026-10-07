@@ -1,4 +1,4 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -81,7 +81,11 @@ export default function Carrito() {
         renderItem={({ item }) => (
           <FilaCarrito
             item={item}
-            onSumar={() => actualizarCantidad(item.productId, item.quantity + 1)}
+            onSumar={() => {
+              if (!actualizarCantidad(item.productId, item.quantity + 1)) {
+                Alert.alert('Stock máximo', `Solo hay ${item.stock} unidades de ${item.name}.`);
+              }
+            }}
             onRestar={() => actualizarCantidad(item.productId, item.quantity - 1)}
             onQuitar={() => quitarDelCarrito(item.productId)}
           />

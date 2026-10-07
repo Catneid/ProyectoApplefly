@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import crypto from "crypto";
 import jsonwebtoken from "jsonwebtoken";
 import { config } from "../../config.js";
 import { getFirebaseAuth } from "../config/firebaseAdmin.js";
 import customerModel from "../models/customers.js";
+import { TOKEN_TYP } from "../utils/tokenTypes.js";
 
 // Mismo criterio de mayúsculas que Firebase (que guarda los correos en
 // minúsculas) sin tocar lo que ya está guardado en Mongo.
@@ -30,7 +32,7 @@ const clienteDesdeFirebase = async (decoded) => {
 
   if (!email || !correoVerificado) {
     return {
-      error: { status: 403, message: "Verifica tu correo para continuar" },
+      error: { status: 403, message: "Verifica tu correo para continuar", code: "EMAIL_NO_VERIFICADO" },
     };
   }
 
@@ -47,7 +49,7 @@ const clienteDesdeFirebase = async (decoded) => {
     // por si dos peticiones llegan a la vez).
     try {
       const vinculada = await customerModel.findOneAndUpdate(
-        { _id: existente._id, firebaseUid: { $exists: false } },
+        { _id: existente._id, firebaseUid: mongoose.trusted({ $exists: false }) },
         { firebaseUid: uid },
         { returnDocument: "after" }
       );
@@ -113,7 +115,9 @@ export const verifyToken = async (req, res, next) => {
     try {
       const cliente = await clienteDesdeFirebase(decoded);
       if (cliente.error) {
-        return res.status(cliente.error.status).json({ message: cliente.error.message });
+        return res
+          .status(cliente.error.status)
+          .json({ message: cliente.error.message, code: cliente.error.code });
       }
 
       req.user = {
@@ -135,6 +139,17 @@ export const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jsonwebtoken.verify(token, config.JWT.secret);
+
+    // Los demás JWT de este backend (recuperación, registro) se firman con el
+    // mismo secreto y también dicen userType "customer": por eso se exige el
+    // typ de sesión y un id de cliente real, no solo el userType.
+    if (
+      decoded.typ !== TOKEN_TYP.SESSION ||
+      typeof decoded.id !== "string" ||
+      !mongoose.isObjectIdOrHexString(decoded.id)
+    ) {
+      return res.status(401).json({ message: "Token inválido" });
+    }
 
     if (decoded.userType !== "customer") {
       return res.status(403).json({ message: "Acceso denegado" });
