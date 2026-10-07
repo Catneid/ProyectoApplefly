@@ -14,15 +14,25 @@ const app = express();
 
 // Corre detrás del proxy de Render. Sin esto, req.ip es la IP del proxy para
 // TODOS los clientes y el limiter del login los cuenta como una sola persona.
-// El 1 es "confía en un solo salto": se usa la IP que agregó el proxy y no una
-// X-Forwarded-For inventada por el cliente.
-app.set("trust proxy", 1);
+// TRUST_PROXY es cuántos saltos de proxy se confían: 1 = solo Render (por
+// defecto). El panel en Vercel reenvía /api hasta acá (Vercel -> Render), así
+// que en Render conviene poner 2 para que cada admin cuente con su propia IP.
+app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+
+// El panel en Vercel llama a /api en su propio dominio (vercel.json reenvía a
+// Render), así que en producción el navegador no hace peticiones cruzadas.
+// CORS_ORIGINS queda por si se llama al backend directo desde otro dominio,
+// separado por comas.
+const origenesPermitidos = [
+  "http://localhost:5174",
+  ...(process.env.CORS_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean),
+];
 
 app.use(
   cors({
     // Este backend es solo del panel de administración.
     // La tienda del cliente (5173) habla con public/backend, en el puerto 4001.
-    origin: ["http://localhost:5174"],
+    origin: origenesPermitidos,
     credentials: true,
   })
 );

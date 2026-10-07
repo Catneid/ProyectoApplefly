@@ -21,14 +21,25 @@ const app = express();
 
 // Estos servicios corren detrás del proxy de Render. Sin esto, req.ip es la IP
 // del proxy para TODOS los clientes y los limiters los cuentan como una sola
-// persona (30 peticiones entre todos). El 1 es "confía en un solo salto": se
-// usa la IP que agregó el proxy y no una X-Forwarded-For inventada por el cliente.
-app.set("trust proxy", 1);
+// persona (30 peticiones entre todos). TRUST_PROXY es cuántos saltos de proxy
+// se confían: 1 = solo Render (por defecto). Si la tienda en Vercel reenvía
+// /api hasta acá, hay un salto más (Vercel -> Render) y conviene poner 2 en
+// Render; si no, todos los usuarios de la web cuentan como la IP de Vercel.
+app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+
+// La tienda en Vercel llama a /api en su propio dominio (vercel.json reenvía
+// a Render), así que en producción el navegador no hace peticiones cruzadas.
+// CORS_ORIGINS queda por si se llama al backend directo desde otro dominio,
+// separado por comas: "https://applefly.vercel.app,https://otra.app".
+const origenesPermitidos = [
+  "http://localhost:5173",
+  ...(process.env.CORS_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean),
+];
 
 app.use(
   cors({
     // Solo la tienda del cliente consume este backend
-    origin: ["http://localhost:5173"],
+    origin: origenesPermitidos,
     credentials: true,
   })
 );

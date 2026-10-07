@@ -10,9 +10,15 @@ const options = {
             "API pública que consume el frontend de la tienda (clientes): catálogo, carrito, pedidos, reseñas, perfil y pagos con Wompi.",
         },
         servers: [
-            { 
-                url: "http://localhost:4001/api", 
-                description: "Desarrollo local" 
+            {
+                // Relativa: sirve tanto en local como en Render, usando el
+                // mismo dominio desde el que se abrió /api-docs.
+                url: "/api",
+                description: "Este servidor"
+            },
+            {
+                url: "http://localhost:4001/api",
+                description: "Desarrollo local"
             },
         ],
         components: {
