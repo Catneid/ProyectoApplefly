@@ -1,8 +1,8 @@
 Pagina tienda: 
-proyecto-applefly.vercel.app
+https://proyecto-applefly.vercel.app
 
 Paginda admin: 
-applefly-admin.vercel.app
+https://applefly-admin.vercel.app
 
 Usuario para acceder a admin:
 
