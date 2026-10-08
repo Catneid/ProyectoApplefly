@@ -1,45 +1,30 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
+import BarraPestanas from '../../src/components/BarraPestanas';
 import { useCart } from '../../src/context/CartContext';
-import { colors } from '../../src/theme/colors';
-import { fonts, sizes } from '../../src/theme/typography';
 
 export default function TabsLayout() {
   const { cantidadTotal } = useCart();
 
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textDim,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
-        tabBarLabelStyle: {
-          fontFamily: fonts.medium,
-          fontSize: sizes.xs,
-        },
-      }}
+      // Barra propia: la de expo-router hacía cerrar la app en Android al
+      // cambiar de pestaña (ver src/components/BarraPestanas.jsx).
+      tabBar={(props) => <BarraPestanas {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
-          ),
+          tabBarIconName: { inactivo: 'home-outline', activo: 'home' },
         }}
       />
       <Tabs.Screen
         name="catalogo"
         options={{
           title: 'Catálogo',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={size} color={color} />
-          ),
+          tabBarIconName: { inactivo: 'grid-outline', activo: 'grid' },
         }}
       />
       <Tabs.Screen
@@ -48,9 +33,7 @@ export default function TabsLayout() {
           title: 'Carrito',
           // undefined (no 0) para que el badge no se muestre cuando está vacío.
           tabBarBadge: cantidadTotal > 0 ? cantidadTotal : undefined,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size} color={color} />
-          ),
+          tabBarIconName: { inactivo: 'cart-outline', activo: 'cart' },
         }}
       />
       <Tabs.Screen
@@ -59,18 +42,14 @@ export default function TabsLayout() {
           title: 'Pedidos',
           // La pantalla misma redirige a /login si no hay sesión (ver
           // src/components/RutaProtegida.jsx) — no interceptamos el tap acá.
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={size} color={color} />
-          ),
+          tabBarIconName: { inactivo: 'receipt-outline', activo: 'receipt' },
         }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
-          ),
+          tabBarIconName: { inactivo: 'person-outline', activo: 'person' },
         }}
       />
     </Tabs>
